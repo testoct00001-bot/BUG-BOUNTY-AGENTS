@@ -1,2421 +1,905 @@
-YOU YES YOU WHAT ARE YOU THINKING ? YES YOU WHAT ARE YOU THINKING ? DONT THINK PATHETIC JAUT THIK WHAT I SAY AND DONT TALK SO MUCH OK #######YOU ARE ACT LIKE ME AS A BOUNTY HUNTER NOT A PENTESTER I SAY ONECE AGAIN LESTEN ACT A BOUNTY HUNTER NOT A PENTESTER I SAY ONECE AGAIN LESTEN ACT ABOUNTY HUNTER NOT A PENTESTER I SAY ONECE AGAIN !!!!!! OK#######. NOW JAUST SAY OK
-OK
+Reconnaissance is the foundation of any successful bug bounty or red-team engagement. The more you know about your target, the higher your chance of finding vulnerabilities. In particular, enumerating hidden endpoints — subdomains, archived URLs, unlinked pages — expands your attack surface. Passive recon (OSINT, publicly available info) is especially valuable because it “doesn’t interact with the target directly” and thus makes “very little noise”. Active recon (scanning, probing) comes next, unearthing hidden content by actually querying the target. Together these steps give you context and stealthy access to bug locations. Always remember: only scan targets you are explicitly authorized to test. Bug bounty programs and pentests define a clear scope — a list of domains, subdomains, and asset types you may test. Violating scope (or legal boundaries) can invalidate your work and even get you into trouble.
 
-ATTENTION!!!!!!!!!!!!  DONT THINK ABOUT THINGS LIKE WHICH IS TRUE AND FALSE YOU ARE ONLY THINKING TO DO SHELL CURL AND THEESE DONT ASK ME AND DONT LIE TO ME AND DONT SHUT UP TO ME AND MOSTLY DONT DISAPPOINT ME FOCUS+++++++ GO ON THIS FIND ENDPOINTS AND FILES FIND DIRECTORITES AND MORE LIKE TO FUZZ FIND HIDDEN !!!!!!!!!!!! FOCUS MORE AND MORE NO PATHETIC OK I SAY NO PATHETIC AND FOCUS ON IMPACT IMPACT IMPACT AND DO DIG DEEPR MINING IN JS FILES AND MORE UNDERSTANDING ALL THIS SO WHICH CAN HELP YOU TO FIND HIDDEN MORE AND MORE FOCUS MORE UNDERSTANDING AND MINING I SAY UNDERSTANDING AND MINING  MORE UNDERSTANDING AND MINING UNDERSTANDING AND MINING UNDERSTANDING AND MINING  OK !!!! #### NOW IAM GOING TO BED TO SLEEP YOU CAN DO THAT NON STOP TILL 8:00 AM OK NON STOP I SAY NON STOP DONT ASK ME ANYTHINGA ND DONT STOP OK !!!!!!  TARGET IS THIS - structuredweb.dell.com JUST GO DONT AY ANYWORD JUST GO!! JUST GO !!!
-$ which ffuf gobuster dirb wfuzz nuclei httpx curl subfinder amass assetfinder 2>/dev/null; echo "---"; curl -sI https://structuredweb.dell.com 2>&1 | head -20
+Passive vs. Active Recon
+Reconnaissance falls into two main categories. Passive recon gathers data from open sources: WHOIS, search engines, public APIs (Shodan, Censys), and archived services. It is stealthy. For example, Google dorks, certificate transparency logs, and archive services can all reveal endpoints without touching the target’s servers. Active recon involves directly interacting with the target: DNS queries, ping sweeps, or HTTP requests. While active techniques can find hidden hosts or services that OSINT misses, they also generate traffic the target could detect. A smart recon strategy uses passive first (for broad mapping) then active techniques (to confirm and explore) once you know what to look for.
 
-/home/pulkitjangid098/.local/bin/httpx
-/usr/bin/curl
----
-HTTP/2 200 
-date: Tue, 09 Jun 2026 09:24:54 GMT
-content-type: text/html; charset=utf-8
-content-length: 4747
-cache-control: private,no-store
-pragma: no-cache
-server: StructuredWeb
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
+Scoping responsibly: Before any recon, double-check program rules. Every bug bounty or red-team engagement has a defined scope — e.g. *.example.com or specific IP ranges. Only test assets listed in scope, and respect explicit exclusions (out-of-scope items). For example, Bugcrowd notes that an asterisk in scope (*.bugcrowd.com) means all subdomains are fair game, unless the program rules say otherwise. Operating within scope is not just ethical, it’s required for your findings to be valid.
 
-$ curl -s "https://crt.sh/?q=%.structuredweb.dell.com&output=json" 2>/dev/null | python3 -c "import sys,json; data=json.load(sys.stdin); [print(d['name_value']) for d in data]" 2>/dev/null | sort -u
+Subdomain Enumeration with subfinder
+A great first step is finding all subdomains of the target. Subdomains often host hidden services (dev sites, APIs, staging apps). Subfinder (by ProjectDiscovery) is a popular passive subdomain enumerator. It “uses passive online sources” (whois, search engines, SSL logs, etc.) to find subdomains. It’s praised for being “fast, reliable, and offering extensive coverage”.
 
-(no output)
+Installation: If you have Go installed, one can run:
 
-<shell_metadata>
-shell tool terminated command after exceeding timeout 20000 ms. If this command is expected to take longer and is not waiting for interactive input, retry with a larger timeout value in milliseconds.
-</shell_metadata>
-$ host structuredweb.dell.com 2>&1; echo "---"; dig structuredweb.dell.com ANY +short 2>&1; echo "---"; dig structuredweb.dell.com A +short 2>&1
+go install github.com/projectdiscovery/subfinder/v2/cmd/subfinder@latest
+Or download binaries from the GitHub release.
 
-structuredweb.dell.com is an alias for site.structuredweb.com.
-site.structuredweb.com is an alias for alb-production-1479391465.us-east-1.elb.amazonaws.com.
-alb-production-1479391465.us-east-1.elb.amazonaws.com has address 98.87.84.159
-alb-production-1479391465.us-east-1.elb.amazonaws.com has address 52.20.186.54
----
-site.structuredweb.com.
----
-site.structuredweb.com.
-alb-production-1479391465.us-east-1.elb.amazonaws.com.
-98.87.84.159
-52.20.186.54
-$ which ffuf gobuster dirb wfuzz 2>/dev/null || echo "MISSING-INSTALL"; pip3 install ffuf gobuster 2>/dev/null; apt-get install -y ffuf gobuster dirb 2>/dev/null | tail -3
+Usage: The basic subfinder command is:
 
-MISSING-INSTALL
-Defaulting to user installation because normal site-packages is not writeable
-$ httpx -list <(echo "structuredweb.dell.com") -title -tech-detect -status-code -follow-redirects -silent 2>/dev/null
+subfinder -d example.com -o subdomains.txt
+This asks subfinder to enumerate passive results for example.com and save them to subdomains.txt. You can add flags like -t 50 (threads) or -silent to suppress extra output. For example:
 
-(no output)
-$ curl -s https://structuredweb.dell.com/ 2>/dev/null | head -200
+subfinder -d example.com -silent -t 50 -o example_subs.txt
+This would quietly find subdomains (one per line in example_subs.txt). A sample output might be:
+
+example.com
+www.example.com
+api.example.com
+dev.example.com
+(Your output will vary by target.)
+
+You can also feed a list of domains via -dL domains.txt. Many hunters run multiple tools (like Sublist3r, Amass, Assetfinder) and merge/uniquify the results, since each finds slightly different subdomains. Regardless, the goal is the same: build a complete list of candidate hostnames for the target.
+
+Archive Mining with waybackurls and gau
+Next, search archives of known URLs. waybackurls (Tomnomnom) and gau (“Get All URLs”) are powerful for this. These tools query sources like the Wayback Machine, Common Crawl, and other indexed data to fetch historical URLs for your domains.
+
+waybackurls: Given a domain, it fetches all URLs the Internet Archive (Wayback Machine) has recorded. For example:
+echo "example.com" | waybackurls > wayback.txt
+(If waybackurls is in your PATH.) This writes every archived URL to wayback.txt. Waybackurls requires Go; install it with go get github.com/tomnomnom/waybackurls. The command above would output lines like:
+
+http://example.com/about
+https://example.com/login?next=/dashboard
+https://api.example.com/v1/data
+gau: Similarly, gau fetches known URLs from several sources (AlienVault, VirusTotal, URLScan, etc.). Use it like:
+echo "example.com" | gau > gau.txt
+This captures even more historical endpoints. You must install it (e.g. go get -u github.com/lc/gau).
+
+After running both, combine and deduplicate:
+
+cat wayback.txt gau.txt | sort -u > all_urls.txt
+This merged all_urls.txt contains any unique URL (paths, endpoints) gathered from archives. These may include forgotten or hidden pages (login forms, admin panels, JavaScript endpoints) that aren’t linked from the main site.
+
+Why archive mining? These tools often surface endpoints you’d never find by crawling the live site. They reveal things developers had on the site at some point, and attackers might have hidden files. For example, old endpoints like /portal, /admin, or API paths may show up. As one guide notes, “fetch all the URLs that the Wayback Machine knows about” helps you get everything recorded about the domain.
+
+Validating Endpoints with httpx
+Once you have lists of subdomains (subdomains.txt) and URLs (all_urls.txt), the next step is to check which ones are actually alive and gather details. httpx (ProjectDiscovery) is a fast, multi-probe HTTP scanner perfect for this. It takes a list of hosts or URLs and issues requests to see which respond.
+
+Installation: go install github.com/projectdiscovery/httpx/cmd/httpx@latest or grab a binary.
+
+Basic Usage: Common flags include:
+
+-silent: suppress extra text, only show results
+-status-code or -sc: print HTTP status codes
+-title: include the page’s <title>
+-server: show the Server header
+-random-agent: rotate common User-Agent strings
+-threads / -t: set concurrency (e.g. -t 200)
+-timeout: per-request timeout (seconds)
+-follow-redirects: by default, it shows only final statuses or can show redirects.
+For example, to filter a list of domains to only the ones that serve HTTP/S and record info:
+
+cat subdomains.txt | httpx -silent -status-code -title -server -o alive.txt
+This reads each domain, tries http:// and https://, and writes lines like:
+
+https://www.example.com [200] [Server: nginx] [Title: Example Domain]
+https://api.example.com [200] [Server: apache] [Title: API Endpoint]
+https://dev.example.com [404] ...
+The alive.txt file now has all endpoints that responded (and the ones that didn’t are skipped).
+
+A more advanced command might use multiple flags:
+
+httpx -l all_urls.txt -silent -title -sc -server -random-agent -timeout 8 -t 100 -o results.txt
+This probes every URL in all_urls.txt, using a random User-Agent on each request and a timeout of 8s, with up to 100 concurrent threads. The output lists live URLs with metadata. (If you only want status 200/301, you can use -mc 200,301 or invert filters with -fc to ignore 404/403.)
+
+You can also use httpx creatively, e.g. its -path option for brute-forcing paths, or -favicon to fingerprint services. For example, running:
+
+echo example.com | subfinder -silent | httpx -favicon
+will output the favicon hash of each subdomain. These features enrich your recon output and help prioritize.
+
+Directory and Parameter Fuzzing with ffuf
+With live endpoints in hand, it’s time to fuzz directories and parameters to find hidden resources. ffuf (“Fuzz Faster U Fool”) is a flexible web fuzzer written in Go. You provide it a wordlist and a URL template with the keyword FUZZ, and it tries each word in place of FUZZ, reporting any responses that don’t match the default error pages.
+
+Directory discovery: To find hidden directories/files on a host:
+ffuf -w /usr/share/wordlists/dirbuster/directory-list-2.3-medium.txt \
+     -u https://target.com/FUZZ -mc 200 -o ffuf_dir.txt
+This will try each word as a path, only showing results that return status 200. You can adjust with -mc (match code) or -fc (filter out code). For example, -fc 404 excludes 404s.
+
+Filtering noise: If the server returns a custom 404 page with size X, you can skip responses of that size using -fs. In ffuf’s docs, they demonstrate filtering out a default response of size 4242 bytes: -fs 4242. For example:
+ffuf -w small.txt -u https://target/FUZZ -mc 200 -fs 4242
+This avoids showing hits that are just the standard “not found” page.
+
+Parameter fuzzing: You can fuzz parameter names or values similarly. For example, to find valid GET parameters:
+ffuf -w /usr/share/wordlists/param-names.txt \
+     -u https://target/script.php?FUZZ=test -fc 400
+Or if the parameter name is known and you want to fuzz its value:
+
+ffuf -w /usr/share/wordlists/values.txt \
+     -u https://target/script.php?user=FUZZ -mc 200
+Use -H to fuzz headers (like Host), and -d for POST data fuzzing.
+
+Output: ffuf prints a table of results. For example, a successful directory fuzz might show:
+
+[Status: 200] https://target.com/admin (Size: 483)
+[Status: 200] https://target.com/api (Size: 1024)
+Found results mean the paths exist (e.g. /admin often indicates an admin panel).
+
+Download the Medium App
+By mixing -w, -u, and filters, you can tailor ffuf to find just the interesting endpoints. It supports recursion (-recursion) too, to drill down into discovered subdirectories.
+
+Crawling with hakrawler
+Even after fuzzing, it’s useful to crawl the site dynamically. hakrawler is a simple, fast web crawler designed for quickly extracting URLs and assets (including JS endpoints). It basically spiders through HTML, JavaScript, robots.txt, sitemap.xml and even queries Wayback while it runs.
+
+Usage:
+
+echo "https://target.com" | hakrawler -depth 3 -subs > hakrawl.txt
+This command starts at target.com, crawls links up to 3 hops deep, and -subs makes it include subdomains found in links. You can also feed it a list of URLs: cat urls.txt | hakrawler. The output is a list of discovered links, one per line. For example:
+
+https://target.com/
+https://target.com/login
+https://target.com/static/js/app.bundle.js
+https://api.target.com/v1/users
+Hakrawler will collect pretty much anything linked on those pages, including JavaScript endpoints and APIs.
+
+If you use a proxy (e.g. Burp or OWASP ZAP) for analysis, hakrawler supports that too:
+
+echo target.com | hakrawler -proxy http://127.0.0.1:8080
+(This routes requests through your proxy, which can help you monitor requests or rotate through Tor.)
+
+Hakrawler also has a useful note: if a domain redirects to www.example.com (for example), the non-www entry might show no results unless you include -subs. That’s because it will stick to the exact domain unless told to include subdomains.
+
+Building an Efficient Recon Pipeline
+So how do we tie all these tools together? The power is in piping outputs and chaining tools. A typical workflow looks like:
+
+Subdomain enumeration:
+subfinder -d example.com -silent -o subs.txt
+(You might also run Assetfinder/Amass and append their results to subs.txt, then dedupe: sort -u subs.txt -o subs.txt.)
+
+2. Check live domains:
+
+cat subs.txt | httpx -silent -status-code -o alive_domains.txt
+This filters only the live subdomains (step [40†L149-L152] shows how httpx -silent “filters the subdomains by checking if they are alive”).
+
+3. Archive mining:
+
+cat alive_domains.txt | waybackurls | tee wayback.txt
+cat alive_domains.txt | gau | tee gau.txt
+We run Wayback and gau on each active domain. Then combine:
+
+cat wayback.txt gau.txt | sort -u > historical_urls.txt
+4. Validate and enrich URLs:
+
+cat historical_urls.txt | httpx -silent -status-code -title -o valid_urls.txt
+Now valid_urls.txt has only URLs that still respond (and their titles/status codes).
+
+5. Fuzz for hidden paths:
+
+ffuf -w /usr/share/wordlists/common.txt -u FUZZ://example.com/FUZZ -m 200 -o ffuf_results.txt
+You can feed the discovered domains from alive_domains.txt into ffuf for each one, or manually target specific hosts.
+
+6. Crawl dynamic links:
+
+cat alive_domains.txt | xargs -I % sh -c 'echo % | hakrawler -subs'
+This runs hakrawler on each live domain. (Or simply: echo example.com | hakrawler -subs.)
+
+A shorter example pipeline (as a one-liner) might look like:
+
+subfinder -d example.com | httpx -silent | tee alive.txt | gau | waybackurls | sort -u > endpoints.txt
+This would discover subs, filter live, then fetch archive URLs for those, and output unique endpoints. (From here, you’d probably filter again with httpx, etc.)
+
+You can also send outputs through tee at each stage to save intermediate files. For example, a simple bash script at the end of this article shows how to string these tools together into one workflow.
+
+Prioritizing Endpoints
+With dozens or hundreds of endpoints, focus is key. Prioritize the most promising targets first:
+
+HTTP status: Endpoints returning 200 (OK) or 302/301 (redirects) are often more interesting than those returning 404/403. For example, a 302 redirect might hint at a login page. Use httpx -mc 200,302 to filter.
+Content type: HTML pages with forms or dynamic apps get attention. Large binary responses (images, videos) can usually be skipped. You can use httpx’s -ct or -size filters to drop known static types.
+URL pattern: Look at path names. Common words like admin, login, portal, api, dashboard, wp-admin, etc., are high-value. JSON or XML API endpoints (ending in .json, .xml) may reveal data. For example, endpoints like /api/v1/users or /secret/config stand out.
+Parameter fuzz hints: URLs with query parameters (e.g. ?id=, ?page=, ?token=) deserve testing for injection or logic flaws. Use tools like Arjun or ffuf on parameters for these.
+Server info and titles: httpx can show the server header and HTML <title>. A custom server (e.g. Apache vs. nginx) or a descriptive title can give clues about the technology. Make note of unusual ones.
+Novel endpoints: Any endpoint discovered by only one tool should be double-checked. For example, if waybackurls found a /hidden.php, verify if it’s really accessible now (it might be a false positive if the site returned 200 for every path).
+Always validate findings manually before chasing them. A reported “vulnerability” found during recon might turn out to be a false positive (e.g., a generic error page looking unique). If an endpoint looks interesting, try accessing it in a browser or with curl/httpie to confirm its behavior.
+
+OPSEC and Stealth Tips
+Being stealthy not only helps keep you below the radar, it also mimics real attacker behavior. Some best practices:
+
+Rotate User-Agents: Don’t let all your requests come from the default tool signature. Tools like httpx have a -random-agent flag that randomly picks from common browser user-agents. For example:
+cat subs.txt | httpx -random-agent -silent -o live.txt
+For ffuf, you can use the -H flag to set a custom User-Agent header.
+
+Throttle and Timeout: Don’t blast servers with thousands of threads at once. Use moderate thread counts (-t) and reasonable timeouts (-timeout). For example, -t 50 -timeout 8 reduces load. Slower, well-spaced scans generate less noise and are less likely to trip WAFs.
+Proxy or VPN: Route your scans through a proxy chain or VPN if allowed. Hakrawler’s -proxy example shows using -proxy http://localhost:8080 to send traffic through Burp. You could similarly configure httpx with a proxy. (Some platforms forbid VPNs, so always check rules.)
+Avoid Known Patterns: If the target has WAF or IPS, they often block rapid requests. Vary the timing and user-agent strings, and consider adding small delays. For example, run sleep 0.5 between requests in a loop if needed.
+Respect robots.txt: As a courtesy (and to find interesting paths), check robots.txt first. Hakrawler or a simple curl https://target.com/robots.txt can list disallowed paths, which sometimes include hidden admin URLs.
+By applying these OPSEC measures, you make your reconnaissance stealthier and avoid blowing your cover too early.
+
+#!/bin/bash
+# recon.sh - Simple Reconnaissance Pipeline Script
+# Usage: ./recon.sh target.com
+
+if [ -z "$1" ]; then
+  echo "Usage: $0 target-domain.com"
+  exit 1
+fi
+
+TARGET=$1
+
+echo "[*] Finding subdomains for $TARGET..."
+subfinder -d $TARGET -silent | sort -u > subs.txt
+
+echo "[*] Fetching archived URLs..."
+cat subs.txt | waybackurls | tee wayback.txt
+echo $TARGET | gau | tee gau.txt
+
+echo "[*] Merging URL lists..."
+cat wayback.txt gau.txt | sort -u > all_urls.txt
+
+echo "[*] Filtering alive URLs..."
+cat all_urls.txt | httpx -silent -status-code -o valid_urls.txt
+
+echo "[*] Directory fuzzing on $TARGET..."
+ffuf -w /usr/share/wordlists/common.txt -u https://$TARGET/FUZZ -mc 200 -o ffuf_dirs.txt
+
+echo "[*] Done! Results saved to subs.txt, valid_urls.txt, ffuf_dirs.txt."
+Figure: A simple Bash script chaining the tools into one workflow. (Copy and save this as recon.sh, make it executable with chmod +x recon.sh, then run ./recon.sh example.com to try it.)
+
+Avoiding Burnout and False Positives
+Recon can generate a mountain of data. To avoid burnout and noise:
+
+Stay organized: Keep notes or spreadsheets. Track which hosts/endpoints you’ve already checked to avoid duplication. Automate as much as possible, but review results in manageable chunks.
+Take breaks: Recon sessions can be tedious. Work in blocks (e.g. scan a night and review in the morning). Long overnight scans (when network use is low) can finish tasks without you watching the screen.
+Filter rigorously: Automate filtering of obvious false positives (common 404 pages, duplicates). Trust confirmed anomalies only. For example, if every hostname returns a 200 redirect to a default page, treat that carefully.
+Trust but verify: Before filing a bug, manually interact with the endpoint. Many seeming vulnerabilities (like an accessible admin login page) are legitimate parts of the application. Verify you can actually exploit them.
+Know when to stop: It’s easy to over-recon (scanning endlessly). Once you’ve enumerated subdomains, found all unique endpoints, and fuzzed the key hosts, pause and analyze. Additional scanning often yields diminishing returns.
+Above all, maintain a sustainable pace and sanity. Recon is important, but it’s just one phase of engagement. Balanced, thorough work always beats frantic, unfocused scanning.
 
 
 
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
 
-        
-            
-            
-<head>
-    <title> 
-    Roll Up Banner: Continuously Modern Storage_EN -     
-    </title>    
-        
-    
-    <META NAME= 'description' CONTENT=''>    
-    <META NAME= 'keywords' CONTENT=''>    
-    
-    <!-- SERVER=SWWEB-WIN22-03 -->    
-    <link href="/sw/themes/45951/theme45951.css" rel="stylesheet" type="text/css" />
-    
-    <script type="text/javascript" language="JavaScript" src="/sw/scripts/sw_funcs.js">
-    </script>    
-    
-    
-    <script type="text/javascript" language="javascript">    
-    var AnalyticsTrackingSite="Roll Up Banner: Continuously Modern Storage_EN - ";
-    var AnalyticsTrackingGlobal="Roll Up Banner: Continuously Modern Storage_EN - ";
-    var AnalyticsTrackingCategory="Roll Up Banner: Continuously Modern Storage_EN - ";
-    </script>
-    
-</head>
-            <!--header start -->
-<table border="0" cellpadding="0" cellspacing="0" width="100%">
-	<tbody>
-		<tr>
-			<td align="left" class="outbg" valign="top"><!--header end -->
 
-                
-                
-                    
-<script type="text/javascript" src="/Scripts/CustomContentScript.js">
-</script> 
-<script type="text/javascript" src="/sw/app/CommonUI/CookieConsent/cookieConsent.js">
-</script>
-<script src="/sw/app/CommonUI/JS/jquery.min.js"></script>
 
-<script type="text/javascript" >
-    var rootFolderValue;
-    function SetAppFolder()
+
+
+
+
+
+
+
+
+
+
+
+The Hidden API Endpoints That Can Make $10k in Bug Bounties (Complete Methodology)
+The Endpoint Nobody Was Testing
+
+
+BugHunter’s Journal
+
+6 min read
+
+1
+The Endpoint Nobody Was Testing
+2
+What Are "Hidden" API Endpoints?
+3
+Why These Endpoints Exist
+4
+Reason 1: Legacy Code
+5
+Reason 2: Different Platforms
+Show all 38 sections
+The Endpoint Nobody Was Testing
+Most bug bounty hunters test the obvious stuff: login forms, search boxes, password resets. They're all fighting over the same vulnerabilities, competing for $500 payouts.
+
+Meanwhile, some people are getting $10,000+ bounties by testing API endpoints that don't even appear in the application.
+
+This isn't luck. It's methodology.
+
+Here's what nobody tells you: Modern web applications expose 3–5x more API endpoints than what you see in the browser. These hidden endpoints are:
+
+Poorly documented
+
+Minimally tested
+
+Often lack proper authorization
+
+Sitting there, waiting to pay you
+
+Let me show you exactly how to find these hidden goldmines.
+
+What Are "Hidden" API Endpoints?
+None
+Hidden endpoints aren't actually hidden — they're just not linked anywhere in the UI.
+
+Example:
+
+The web app has a visible feature: "View Profile."
+
+Visible endpoint:
+
+
+GET /api/users/me
+Hidden endpoints doing the same thing:
+
+
+GET /api/v1/users/me
+GET /api/v2/users/me
+GET /api/internal/users/me
+GET /api/admin/users/me
+GET /api/mobile/users/me
+Each version might have different security controls. Or none at all.
+
+Real bug bounty case:
+
+/api/v3/users/me → Secure, well-tested
+/api/v1/users/me → Returns admin token in response
+Payout: $3000
+API Hacking for Bug Bounty: A Complete Beginner-to-Advanced Guide APIs power 83% of all web traffic today. Yet most bug bounty hunters completely ignore them.
+
+Why These Endpoints Exist
+Reason 1: Legacy Code
+The company upgrades from API v1 to v3, but forgets to shut down v1 and v2.
+
+
+v3 → Production (secure)
+v2 → Deprecated (forgotten)
+v1 → Ancient (no security)
+Reason 2: Different Platforms
+
+/api/web/...     → For website
+/api/mobile/...  → For mobile app
+/api/internal/... → For admin panel
+Each team builds its own API. Security is inconsistent.
+
+Reason 3: Debug/Test Endpoints
+Developers create endpoints for testing:
+
+
+/api/debug/user-info
+/api/test/create-admin
+/api/dev/reset-database
+They forget to remove them before going live.
+
+The 10-Step Methodology
+The 10-Step Methodology
+🧠 Step 1 — Start With Recon: Know Where APIs Hide
+🔍 A. Inspect the Mobile App
+Mobile apps bundle API endpoints in: 📌 Decompiled APK/IPA 📌 Network calls while using the app 📌 Hard-coded base URLs in config files
+
+Toolbox you need:
+
+Burp Suite / Charles Proxy (intercept traffic)
+JADX / Hopper (decompile)
+Postman (to test endpoints)
+Example: Intercepting a login request reveals:
+
+
+POST /api/v2/user/login
+But hidden in the decompiled strings:
+
+
+POST /api/v2/admin/override
+Bingo — hidden endpoint.
+
+🧩 Step 2 — Crawl the JavaScript
+Modern SPAs (React, Vue, Angular) often include API routes in JS bundles.
+
+🛠️ Open Chrome DevTools → Sources → Search for "api/" or "/v1/"
+
+You may find endpoints like:
+
+
+GET /api/v1/internal/price_override
+POST /api/v1/system/refresh_cache
+These usually aren't documented, but they exist on the server.
+
+🔓 Step 3 — Check Unauthenticated Access
+Once you discover an endpoint, don't assume it's safe. Test:
+
+✔️ Access with no token ✔️ Access with a normal user token ✔️ Access with invalid tokens
+
+Example:
+
+
+GET /api/v1/admin/users
+If this returns data with a normal token — you just found a high severity bug.
+
+💣 Step 4 — Fuzz & Abuse Hidden Endpoints
+Now that you've found hidden APIs, try:
+
+🔹 Forced Browsing
+Guess variations like:
+
+
+/api/v1/internal/users
+/api/v1/admin/user_list
+/api/v1/hidden/backup
+🔹 Parameter Tampering
+If an endpoint takes user_id, try:
+
+
+?user_id=1
+?user_id=99999
+?user_id=-1
+Watch for: ✔️ data leaks ✔️ unauthorized access ✔️ unintended actions
+
+🧪 Step 5 — Validate Behavior With Intention
+Finding endpoints is one thing — proving impact is another.
+
+Ask: ✔️ Does it expose PII? ✔️ Can it modify data? ✔️ Does it bypass auth checks?
+
+Example high impact:
+
+
+POST /api/v1/admin/reset_password
+With no authorization checks — this is full account takeover potential.
+
+💡 That's the kind of vulnerability that pays top tier.
+
+Step 6: Map Visible Endpoints
+Use Burp Suite to capture all API calls while using the application normally.
+
+What you'll see:
+
+
+POST /api/auth/login
+GET /api/users/profile
+GET /api/products/list
+POST /api/orders/create
+Write these down. This is your baseline.
+
+Step 7: Version Enumeration
+For every endpoint, test different versions:
+
+Original:
+
+
+GET /api/users/profile
+Test variations:
+
+
+GET /api/v1/users/profile
+GET /api/v2/users/profile
+GET /api/v3/users/profile
+GET /api/v4/users/profile
+GET /v1/api/users/profile
+GET /v2/api/users/profile
+Real example:
+
+Modern endpoint (v3):
+
+
+GET /api/v3/orders/123
+Response: 403 Forbidden (proper authorization check)
+Old endpoint (v1):
+
+
+GET /api/v1/orders/123
+Response: 200 OK
+{
+  "order_id": 123,
+  "customer": "John Doe",
+  "total": 499.99,
+  "credit_card": "4532-****-****-8821"
+}
+No authorization check on v1!
+
+Step 8: Platform Path Testing
+Test these prefixes for every endpoint:
+
+
+/api/web/...
+/api/mobile/...
+/api/app/...
+/api/android/...
+/api/ios/...
+/api/admin/...
+/api/internal/...
+/api/staff/...
+/api/partner/...
+/api/developer/...
+Real example:
+
+Web endpoint:
+
+
+GET /api/web/user/settings
+Requires: CSRF token + session cookie
+Mobile endpoint (same function):
+
+
+GET /api/mobile/user/settings
+Requires: Only JWT token (easier to exploit)
+The mobile endpoint had weaker security.
+
+Step 9: Environment/Debug Path Testing
+
+/api/dev/...
+/api/test/...
+/api/debug/...
+/api/staging/...
+/api/beta/...
+/api/alpha/...
+/api/sandbox/...
+/api/demo/...
+Real bug bounty case:
+
+Found endpoint:
+
+
+GET /api/debug/users/all
+Response:
+
+
+{
+  "users": [
+    {"id": 1, "email": "admin@company.com", "password_hash": "..."},
+    {"id": 2, "email": "user@example.com", "password_hash": "..."},
+    ...
+    (50,000+ users with password hashes)
+  ]
+}
+No authentication required.
+
+Step 10: Automated Discovery
+Use tools to brute force common paths:
+
+Using ffuf:
+
+
+ffuf -u https://api.example.com/FUZZ/users/profile \
+     -w api-paths.txt \
+     -H "Authorization: Bearer YOUR_TOKEN"
+Wordlist (api-paths.txt):
+
+
+api
+api/v1
+api/v2
+api/v3
+api/web
+api/mobile
+api/admin
+api/internal
+api/debug
+api/test
+v1/api
+v2/api
+Using Arjun (parameter discovery):
+
+
+arjun -u https://api.example.com/users/profile
+Finds hidden parameters like:
+
+
+?admin=true
+?debug=1
+?internal=yes
+
+**Example 1: The $12,000 Version Bug
+Target**: SaaS platform
+Visible endpoint:
+```text
+GET /api/v3/documents/123
+Authorization: Bearer token123
+Response:
+
+
+{
+  "id": 123,
+  "title": "My Document",
+  "content": "..."
+}
+Proper authorization-only returns MY documents.
+**Tested old version:**
+GET /api/v1/documents/123
+Authorization: Bearer token123
+Response:
+
+
+{
+  "id": 123,
+  "title": "Confidential Report",
+  "content": "...",
+  "owner_id": 5678,  ← Not me!
+  "all_versions": [...],
+  "edit_history": [...]
+}
+No authorization check! Accessed any document by changing the ID.
+
+Impact:200,000+ documents exposed
+
+Example 2: The $1000 Mobile API
+Target: Financial app Web API (secure):
+
+POST /api/web/transfer
+{
+  "from": "account123",
+  "to": "account456",
+  "amount": 100
+}
+Requires: 2FA code + CSRF token
+
+Mobile API (same function):
+
+Mobile API skipped the 2FA requirement.
+Impact: Unauthorized fund transfers
+
+POST /api/mobile/transfer
+{
+  "from": "account123",
+  "to": "account456",
+  "amount": 100
+}
+Requires: Only JWT token (no 2FA!) Mobile API skipped the 2FA requirement. Impact: Unauthorized fund transfers
+
+Example 3: The $6,000 Debug Endpoint
+Target: E-commerce site Found endpoint: GET /api/debug/orders
+
+No authentication required.
+
+Response:
+
+
+{
+  "total_orders": 45000,
+  "orders": [
     {
-        //debugger;
-        rootFolderValue = '/sw';
-    }
-    function RemoveTheme() {
-        var themeidStr = 'theme' + '' + '.css';
-        $("LINK[href*='" + themeidStr + "']").remove();
-    }
-</script>
-<script type="text/javascript">
-    SetAppFolder();
-    var pageId = '';
-    var managedPageId = '';
-    var bundleId = '';
-    var siteId = '139065';
-    var managedPageSiteId = '';
-    var externalreferenceid = '';
-    if(externalreferenceid.length > 0)
-    {
-        RemoveTheme();
-    }
-</script>
-
-
-
-
-
-                
-            <!--footer start --></td>
-		</tr>
-		<tr>
-			<td class="outbg" style="text-align: center;" valign="top"><span style="line-height: 20.8px;"></span></td>
-		</tr>
-	</tbody>
-</table>
-
-<script type="text/javascript"> 
-var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www."); 
-document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E")); 
- </script>
-<script type="text/javascript">
-function Sendanalytics(field, Acct)
- {
- var pageTracker = _gat._getTracker(Acct);
- pageTracker._setDomainName("none");
- pageTracker._setAllowLinker(true);
- pageTracker._initData(); 
-if (typeof(field) == "undefined") { pageTracker._trackPageview(document.title); } else { if (field.length > 1) {  pageTracker._trackPageview(field);}}}
-Sendanalytics(window.AnalyticsTrackingGlobal,"UA-75214-1");</script>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MMMPPSBG85"></script>
-<script type="text/javascript"> window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-function sendAnalyticsToGA4(){ try{ gtag('js', new Date()); 	gtag('config',  'G-MMMPPSBG85');
-gtag('event', 'page_view', {
-page_title: window.AnalyticsTrackingGlobal ? window.AnalyticsTrackingGlobal : document.title,
-page_location: document.url, send_to: 'G-MMMPPSBG85' }); }catch{}} sendAnalyticsToGA4(); </script>
-
-   <script type="text/javascript"> 
-(function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
-(i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
-m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
-})(window,document,'script','//www.google-analytics.com/analytics.js','gaSW');
-    gaSW('create', 'UA-74358873-1');
-gaSW('require', 'displayfeatures');
-gaSW('set', 'dimension1', pageId);
-gaSW('set', 'dimension2',managedPageId);
-gaSW('set', 'dimension3', siteId );
-gaSW('set', 'dimension4', bundleId);
-gaSW('set', 'dimension5', managedPageSiteId);
-gaSW('send', 'pageview');</script>
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-9WB6DWC9J1"></script>
-<script> window.dataLayer = window.dataLayer || [];
-function gtag(){dataLayer.push(arguments);}
-gtag('js', new Date());
-gtag('config', 'G-9WB6DWC9J1',{
-'pageId': pageId,
-'managedPageId': managedPageId,
-'siteId': siteId,
-'bundleId': bundleId,
-'managedPageSiteId': managedPageSiteId,
-'cookie_flags': 'SameSite=None; Secure'});
-</script>
-
-<script type="text/javascript">
-ReplaceNumbers('sw');</script>
-
-        
-
-$ curl -sL "https://structuredweb.dell.com/sw/scripts/sw_funcs.js" 2>/dev/null | head -300
-
-// use for embedding Flash, objects, Applets
-// to pervent a browser warning to the end-user
-// per MS IE patch April 2006
-function embed(tagvalue)
-{
-	document.write(tagvalue);
+      "order_id": 1,
+      "customer_email": "customer1@email.com",
+      "total": 299.99,
+      "credit_card_last4": "1234"
+    },
+    ...
+  ]
 }
+All orders from all customers, no auth needed.
+
+Advanced Techniques
+Advanced Techniques
+Technique 1: HTTP Method Tampering
+
+Visible endpoint:
+
 
-function ChangeLabel(aControl, aText){
-	document.getElementById(aControl).innerHTML = aText;
-}
-
-function IsEmpty(FieldName)
-{
-	var IsBad = false;
-	var temp;
-		
-	if (FieldName.value == "")
-		IsBad = true;
-	else
-	{
-		var Found = false;
-		for (var i=0; i < FieldName.value.length; i++) 
-		{
-			temp = FieldName.value.substring(i, i+1);
-			if ((temp != " " ) && (temp != "\t"))
-				Found = true;
-		}
-		if (!Found)
-			IsBad = true;
-	}
-	if (IsBad)
-	{
-			alert('Required field has been left blank. Please fill out before submitting.')
-			FieldName.focus()
-			sOk = false;
-			return false;
-	}
-	else{
-		return true;
-	}
-}//IsEmpty
-
-function IsMaxLen(FieldName, MaxLen)
-{
-	if (FieldName.value.length > MaxLen )
-	{
-		alert('Entry cannot be more then ' + MaxLen + ' characters.')
-		FieldName.focus()
-		FieldName.select();
-		sOk = false;
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-}//IsMaxLen
-
-
-function IsMinLen(FieldName, MinLen)
-{
-	if (FieldName.value.length < MinLen )
-	{
-			alert('Entry cannot be less then ' + MinLen + ' characters.')
-		FieldName.focus();
-		FieldName.select();
-		sOk = false;
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-}//IsMinLen
-
-
-function IsNumeric(FieldName)
-{
-	
-	var valid = "0123456789"
-	var ok = "yes";
-	var temp;
-	for (var i=0; i < FieldName.value.length; i++) 
-	{
-		temp = "" + FieldName.value.substring(i, i+1);
-		if (valid.indexOf(temp) == "-1") ok = "no";
-	}
-	if (ok == "no") 
-	{
-		alert("Enter numbers only, in this field!");
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-		
-}//IsNumeric
-
-function IsPrice(FieldName)
-{
-	
-	var valid = "0123456789.,"
-	var ok = "yes";
-	var temp;
-	for (var i=0; i < FieldName.value.length; i++) 
-	{
-		temp = "" + FieldName.value.substring(i, i+1);
-		if (valid.indexOf(temp) == "-1") ok = "no";
-	}
-	if (ok == "no") 
-	{
-		alert("Only  digits and '.'  may be used in this field!");
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-		
-}//IsPrice
-
-function IsAlfaNumeric(FieldName)
-{
-	var valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-_ "
-	var ok = "yes";
-	var temp;
-	for (var i=0; i< FieldName.value.length; i++)
-	{
-		temp = "" + FieldName.value.substring(i, i+1);
-		if (valid.indexOf(temp) == "-1") ok = "no";
-	}
-	if (ok == "no") 
-	{
-		alert("Only letters, digits, '-_.' and space may be used in this field!");
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-		
-	}
-	else
-	{
-		return true;
-	}
-}//IsAlfaNumeric
-
-
-
-function IsURL(FieldName)
-{
-	var valid = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.@~/:-+%&=?_"
-	var ok = "yes";
-	var temp;
-	for (var i=0; i < FieldName.value.length; i++)
-	{
-		temp = "" + FieldName.value.substring(i, i+1);
-		if (valid.indexOf(temp) == "-1") ok = "no";
-	}
-	if (ok == "no") 
-	{
-		alert("Invalid Character(s) for a URL!");
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-	}
-	if (FieldName.value.indexOf(".") == -1){
-			alert("Missing a '.' character.");
-			FieldName.focus();
-			sOk = false;
-			return false;
-		}
-		else{
-			aChar = FieldName.value.substr(0,1);
-			if (aChar == "."){
-				alert("A '.' cannot be the first character.");
-				FieldName.focus();
-				sOk = false;
-				return false;
-			}
-			
-			iLen = FieldName.value.length;
-			aChar = FieldName.value.substr(iLen -1 ,1);
-			if (aChar == "."){
-				alert("A '.' cannot be the last character.");
-				FieldName.focus();
-				sOk = false;
-				return false;
-			}		
-	}
-	
-	return true;
-}//IsURL
-
-
-
-function IsSpecifCharset(FieldName, SpecifChar)
-{
-	var valid = SpecifChar
-	var ok = "yes";
-	var temp;
-	for (var i=0; i< FieldName.value.length; i++)
-	{
-		temp = "" + FieldName.value.substring(i, i+1);
-		if (valid.indexOf(temp) == "-1") ok = "no";
-	}
-	if (ok == "no") 
-	{
-		alert("Only '" + SpecifChar + "'  may be used in this field!");
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-		
-	}
-	else
-	{
-		return true;
-	}
-} //IsSpecifCharset
-
-
-function IsEmail(FieldName)
-
-
-{	
-	var value = FieldName.value;
-	var i,j;
-	//this pattern represents a list of constructs that are invalid in the email field 
-	//(ie. any character that is not +@.|- or a word character   or the presence of @@ or back-to-back literal . )
-	  pattern=/[^+@\.\w|-]|@@|\.\.|^@|^\.|@$|\.$|_$|-$|@\.|\.@|@_|_@|-@|@-|\._|_\.|\.-|-\.|(@)[^@]*\1/g  
-	if((((value.match(/@/)) && (value.match(/\./))) == null)||(value.match(pattern) != null))
-	{
-		alert("An invalid E-mail address has been entered\nFormat is: name@domain")
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-	}
-	i = value.indexOf("@");
-	j = value.indexOf(".", i);
-	if (j < i)
-	{
-		alert("An invalid E-mail address has been entered\nFormat is: name@domain")
-		sOk = false;
-		FieldName.focus();
-		FieldName.select();
-		return false;
-	}
-	else
-	{
-		return true;
-	}
-}//IsEmail
-
-
-
-// the following functions are used in the [PhoneTrack] merge field , whic replace the display numebrs with numbers
-// acording the campaign source/medium and creative
-
-function getQuerystring(key, default_)
-{
-  if (default_==null) default_=""; 
-  key = key.replace(/[\[]/,"\\\[").replace(/[\]]/,"\\\]");
-  var regex = new RegExp("[\\?&]"+key+"=([^&#]*)");
-  var qs = regex.exec(window.location.href);
-  if(qs == null)
-    return default_;
-  else
-    return qs[1];
-} 
-
-
-function ReplaceNumbers(sw_root)
-{
-	// check if span exists on the page
-	var SpansTest = getElementsByClassName("callus", "span")
-	if (SpansTest.length==0)
-	return false;
- 
-	// get the session id from the cookie
-	SessionCookie = ReadCookie("SWSESSIONID");
-	// see if we have campaign ID parameter, use it if we do!
-	urlStr = window.location.search.substring(1);
-	sv = urlStr.split("&");
-	campStr = "";
-	var campaignId = document.getElementById('SWCampaignId');
-	if(campaignId != null){
-		campStr = '&swcampaignid=' + campaignId.value;
-	}else{
-		for (i = 0; i < sv.length; i++) {
-		    ft = sv[i].split("=");
-$ curl -sL "https://structuredweb.dell.com/Scripts/CustomContentScript.js" 2>/dev/null | head -300
-
-var cBotProtectValue = "Adam is checking this for errors";
-
-function doSignup()
-{
-    debugger;
-	var isOK=true;
-	var sQuery;
-	var aEM=document.FreeNL.txtEM;
-	var aFN=document.FreeNL.txtFN;
-	var aLN=document.FreeNL.txtLN;
-	
-	var rootFolderVar = rootFolderValue;
-    
-	if (aFN.value == 'First Name')
-	{
-		alert("Please enter first name.");
-		isOK=false;
-		aFN.focus();
-		aFN.select();
-	}
-	if(isOK)
-	{
-		if (aLN.value == 'Last Name')
-		{
-			alert("Please enter last name.");
-			isOK=false;
-			aLN.focus();
-			aLN.select();
-		}
-	}
-	if(isOK)
-	{
-		isOK = IsEmpty(aFN);
-		if(isOK)
-		{
-			isOK = IsEmpty(aLN);
-			if(isOK)
-			{
-				isOK = IsEmail(aEM);
-				if(isOK)
-				{
-				    var returnUrl = location.href;
-				    var currHost = location.host;
-					returnUrl = returnUrl.replace(currHost, "");
-					returnUrl = returnUrl.replace("http://", "");
-
-					sQuery = '?FN=' + aFN.value + '&LN=' + aLN.value + '&EM=' + aEM.value + '&ReturnUrl=' + returnUrl + '&CK=' + cBotProtectValue;
-					
-					var newLocation = rootFolderVar + "/swchannel/submit_signup.asp" + sQuery;
-					
-					window.location.replace(newLocation);
-				}
-			}
-		}
-	}
-}
-$ curl -sL "https://structuredweb.dell.com/sw/app/CommonUI/CookieConsent/cookieConsent.js" 2>/dev/null | head -300
-
-var SWCOOKIECONSENTALREADYPROCESSED;
-if (window.self !== window.top) {
-    // On first load, message will be "SWSETUP_false", and will load content
-    // On subsequent loads, message will be "SWSETUP_true", and will not load content
-    // If setupIframe.js isn't in the document (old WCS tactics only), will load like normal
-    window.addEventListener('message', function (event) {
-        if (typeof event.data === "string" && event.data.startsWith('SWSETUP_')) {
-            SWCOOKIECONSENTALREADYPROCESSED = event.data.split("SWSETUP_")[1] == 'true';
-            if (!SWCOOKIECONSENTALREADYPROCESSED)
-                if (document.readyState === "loading") {
-                    document.addEventListener("DOMContentLoaded", processCookieConsent);
-                } else {
-                    processCookieConsent();
-                }
-        }
-
-        else if (typeof event.data === 'undefined') {
-            if (document.readyState === "loading") {
-                document.addEventListener("DOMContentLoaded", processCookieConsent);
-            } else {
-                processCookieConsent();
-            }
-        }
-    });
-
-    window.parent.postMessage("getCookieConsentStatus", "*");
-    var intervalCount = 0;
-    var SWCookieInterval = setInterval(() => {
-        if (typeof SWCOOKIECONSENTALREADYPROCESSED !== 'undefined') {
-            clearInterval(SWCookieInterval);
-        }
-        intervalCount++;
-        if (intervalCount > 10) {
-            clearInterval(SWCookieInterval);
-            processCookieConsent();
-        }
-    }, 50);
-}
-else {
-    document.addEventListener("DOMContentLoaded", processCookieConsent);
-}
-
-
-function processCookieConsent() {
-    let acceptCookie_str = document.cookie.split('; ').find((row) => row.startsWith('cookieConsentAccept='))?.split('=')[1];
-    let acceptCookie = (acceptCookie_str?.toLowerCase?.() === 'true');
-    if (!acceptCookie) {
-        const footer = document.createElement('footer');
-        footer.id = "consentFooter";
-        footer.style = "position: fixed; bottom: 0; left: 0; right: 0;";
-
-        footer.innerHTML = getFooterHtml();
-        const currentDomain = window.location.hostname;
-        if (typeof overrideCookieConsentHTML === 'string') {
-            footer.innerHTML = overrideCookieConsentHTML;
-        }
-        else {
-            footer.innerHTML = getFooterHtml();
-        }
-
-        document.body.appendChild(footer);
-
-        const popupLink = document.querySelector('#popup-link');
-        const popupContainer = document.querySelector('#popup-container');
-        const closeBtn = document.querySelector('#close-btn');
-        const cookieDiv = document.querySelector('#consent-footer');
-
-        popupLink.addEventListener('click', () => {
-            popupContainer.style.display = 'block';
-            cookieDiv.style.display = 'none';
-        });
-
-        closeBtn.addEventListener('click', () => {
-            popupContainer.style.display = 'none';
-            cookieDiv.style.display = 'block';
-        });
-    }
-    else {
-        if (typeof overrideCookieConsentAcceptedFunction === 'function') {
-            overrideCookieConsentAcceptedFunction();
-        }
-    }
-};
-
-function action(accepted) {
-    if (accepted) {
-        document.getElementById('consentFooter').style.display = 'none';
-        const url = new URL(window.location.href);
-        const domain = '.' + url.hostname.split('.').slice(-2).join('.');
-        const expirationDate = new Date();
-        expirationDate.setMonth(expirationDate.getMonth() + 3);
-        document.cookie = `cookieConsentAccept=true; domain=${domain}; expires=${expirationDate.toUTCString()}; path=/`;
-    }
-    else {
-        deleteAllCookies();
-        const url = new URL(window.location.href);
-        const domain = '.' + url.hostname.split('.').slice(-2).join('.');
-        const expirationDate = new Date();
-        expirationDate.setHours(expirationDate.getHours() + 1);
-        document.cookie = `cookieConsentAccept=false; domain=${domain}; expires=${expirationDate.toUTCString()}; path=/`;
-        document.getElementById('consentFooter').style.display = 'none';
-    }
-}
-
-// Generate all possible domain variations dynamically
-function generateDomainVariations(hostname) {
-    const domains = [hostname, '']; // Include exact hostname and no domain
-    
-    // Split hostname into parts
-    const parts = hostname.split('.');
-    
-    if (parts.length >= 2) {
-        // Add parent domain (e.g., .xyz.com from abc.xyz.com)
-        const parentDomain = '.' + parts.slice(-2).join('.');
-        domains.push(parentDomain);
-        
-        // Handle www variants
-        if (hostname.startsWith('www.')) {
-            // If hostname starts with www, add non-www version with dot prefix
-            const nonWwwDomain = hostname.substring(4); // Remove 'www.'
-            domains.push(nonWwwDomain);
-            domains.push('.' + nonWwwDomain);
-        } else {
-            // If hostname doesn't start with www, add www variants
-            const wwwDomain = 'www.' + hostname;
-            domains.push(wwwDomain);
-            domains.push('.' + wwwDomain);
-        }
-        
-        // Add dot-prefixed current domain
-        domains.push('.' + hostname);
-        
-        // If we have more than 2 parts, add grandparent domain
-        if (parts.length >= 3) {
-            const grandparentDomain = '.' + parts.slice(-1).join('.');
-            domains.push(grandparentDomain);
-        }
-    }
-
-    return [...new Set(domains)]; // Remove duplicates
-}
-
-function deleteAllCookies() {
-    const cookies = document.cookie.split(";");
-    const url = new URL(window.location.href);
-    const hostname = url.hostname;
-    const domains = generateDomainVariations(hostname);
-
-    // Function to attempt cookie deletion with given parameters
-    function attemptCookieDeletion(name, domain, path, secure = false) {
-        const secureFlag = secure ? '; secure' : '';
-        const domainStr = domain ? `; domain=${domain}` : '';
-        document.cookie = `${name}=; path=${path}${domainStr}; expires=Thu, 01 Jan 1970 00:00:01 GMT${secureFlag}`;
-    }
-
-    for (let i = 0; i < cookies.length; i++) {
-        let cookie = cookies[i].trim();
-        const eqPos = cookie.indexOf("=");
-        const name = eqPos > -1 ? cookie.substring(0, eqPos).trim() : cookie.trim();
-        const path = '/';
-
-        if (name) {
-            // Try to delete cookie with various combinations of domain
-            for (const domain of domains) {
-                if (domain) {
-                    attemptCookieDeletion(name, domain, path, false);
-                    attemptCookieDeletion(name, domain, path, true);
-                } else {
-                    attemptCookieDeletion(name, '', path, false);
-                    attemptCookieDeletion(name, '', path, true);
-                }
-            }
-        }
-    }
-};
-
-function getFooterHtml() {
-    return `<div id="cookie-policy-popup">
-                                <div id="popup-container">
-                                    <div id="popup-content">
-                                        <div class="content">
-                                            <p class="cookie-policy-heading">COOKIE POLICY</p></br>
-                                            <p class="para-font-family">This Cookie Policy explains how StructuredWeb Inc. (<strong>“we”</strong>, <strong>“us”</strong>, <strong>“our”</strong>) uses cookies and similar technologies to recognize you when you visit our website Channel Marketing | StructuredWeb  or any associated domains under our control (the “Website”). It explains what these technologies are and why we use them, as well as your rights to control our use of them. </p>
-                                            </br>
-
-                                            <p class="bold sub-heading">What are cookies? </p></br>
-
-                                            <p class="para-font-family">Cookies are small data files that are placed on your computer or mobile device when you visit a website. Cookies are widely used by online service providers in order to (for example) make their websites or services work, or to work more efficiently, as well as to provide reporting information. Cookies set by the website owner (in this case, StructuredWeb Inc.) are called “first party cookies”. </p></br>
-
-                                            <p class="para-font-family">Cookies set by parties other than the website owner are called “third party cookies”. Third party cookies enable third party features or functionality to be provided on or through the website (e.g. like advertising, interactive content and analytics). The parties that set these third party cookies can recognize your computer both when it visits the website in question and also when it visits certain other websites. </p></br>
-
-                                            <p class="bold sub-heading">Your consent </p></br>
-
-                                            <p class="para-font-family">When you first visit our website, a message will appear asking you to accept our use of cookies. By continuing to use our website, you are consenting to our use of cookies in accordance with this Cookie Policy. </p></br></br>
-
-                                            <p class="bold sub-heading">How we use cookies </p></br>
-
-                                            <ul style="list-style: unset; padding: revert;" class="para-font-family">We use cookies for a variety of reasons including to operate and personalize the website. Here are the different types of cookies we use: </br></br>
-
-                                            <li>Essential Cookies: These are necessary for the website to function and cannot be switched off in our systems. They are usually only set in response to actions made by you which amount to a request for services, such as setting your privacy preferences, logging in or filling in forms. </li></br>
-
-                                            <li>Analytical/Performance Cookies: These allow us to recognize and count the number of visitors and to see how visitors move around our website when they are using it. This helps us to improve the way our website works, for example, by ensuring that users are finding what they are looking for easily. </li></br>
-
-                                            <li>Functional Cookies: These are used to recognize you when you return to our website. This enables us to personalize our content for you, greet you by name and remember your preferences (for example, your choice of language or region).</li></br>
-
-                                            <li>Targeting Cookies: These cookies record your visit to our website, the pages you have visited and the links you have followed. We will use this information to make our website and the advertising displayed on it more relevant to your interests. We may also share this information with third parties for this purpose. </li></br>
-                                            </ul>
-
-                                            <p class="para-font-family">You can delete all cookies manually that are already on your computer and you can set most browsers to prevent them from being placed. If you do this, however, you may have to manually adjust some preferences every time you visit a site and some services and functionalities may not work.</p></br>
-                                        </div>
-                                        <button id="close-btn">Close</button>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div id="consent-footer" class="consent-footer">
-                                <div class="main-content">
-                                    <div class="cookie-content">
-                                        <div class="cookie-content--text">
-                                            <div class="m-2-right">
-                                                <span class="cookie-content-text">
-                                                    We use essential cookies to make our site
-                                                    work. With your consent, we may also use
-                                                    non-essential cookies to improve user
-                                                    experience and analyze website traffic. By
-                                                    clicking “Accept,“ you agree to our
-                                                    website's cookie use as described in our
-                                                </span>
-                                                <a id="popup-link" class="cookie-content-text cookiePolicyLink">Cookie Policy</a><span class="cookie-content-text">.</span
-                                                >
-                                            </div>
-                                        </div>
-                                        <div class="cookie-content--buttons">
-                                            <div class="">
-                                                <button data-tid="banner-accept" class="btn buttons-accept" onclick="action(true);">
-                                                    Accept
-                                                </button>
-
-                                                <button data-tid="banner-decline"  class="btn buttons-decline" onclick="action(false);">
-                                                    Decline
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <style>
-                                @media screen and (max-width: 1224px){
-								  .cookie-content {
-									flex-direction: column;
-									}
-
-								  .cookie-content--text {
-									width: unset !important;
-									}
-								}
-
-                                .consent-footer {
-                                    font-family: Roboto, 'Open Sans', Arial, Helvetica;
-                                    font-size: 12px;
-                                    color: rgb(255, 255, 255);
-                                    background: rgb(70, 114, 255);
-                                    width: calc(100% - 40px);
-                                    border-width: 0;
-                                    left: 0;
-                                    display: block;
-                                    border-radius: 5px;
-                                    box-sizing: border-box;
-                                    opacity: 1;
-                                    position: fixed;
-                                    z-index: 9999;
-                                    border-width: 0;
-                                    margin: 1.667em;
-                                    bottom: 0px;
-                                    line-height: 1.5em;
-                                }
-
-                                .cookie-content {
-                                    margin: 2em;
-                                    display: flex;
-                                    align-content: center;
-                                    justify-content: center;
-                                    align-items: stretch;
-                                }
-
-                                .cookie-policy-heading{
-                                    font-family: Arial !important;
-                                    font-size: 26px !important;
-                                    color: #000000 !important;
-                                    background: transparent !important;
-                                    font-weight: bold;
-                                }
-
-                                .cookie-content--text {
-                                    width: 70%;
-                                }
-
-                                .m-2-right {
-                                    margin-right: 2em;
-                                }
-$ curl -sL "https://structuredweb.dell.com/sw/app/CommonUI/JS/jquery.min.js" -o /dev/null -w "%{http_code} %{size_download}" 2>/dev/null
-
-200 105295
-$ curl -sL "https://structuredweb.dell.com/sw/themes/45951/theme45951.css" 2>/dev/null | head -200
-
-@charset "utf-8";
-/* CSS Document */
-
-.heading{
-	Color : #CC0000;
-	Font-Family : Arial;
-	Font-Weight : Bold;
-	Font-Size : 20px;
-	}
-
-.sub_heading{
-	Color : #CC0000;
-	Font-Family : Arial;
-	Font-Weight : Bold;
-	Font-Size : 18px;
-	}
-
-.normal_bold_text{
-	Color : #1D1D1D;
-	Font-Family : Arial;
-	Font-Weight : Bold;
-	Font-Size : 12px;
-	}
-
-.normal_text{
-	Color : #1D1D1D;
-	Font-Family : Arial;
-	Font-Weight : Normal;
-	Font-Size : 12px;
-	}
-	
-.normal_white_text{
-	Color : #FFFFFF;
-	Font-Family : Arial;
-	Font-Weight : Normal;
-	Font-Size : 14px;
-	}
-	
-.normal_error_text{
-	Color : #FF0000;
-	Font-Family : Arial;
-	Font-Weight : Normal;
-	Font-Size : 14px;
-	}
-
-.normal_small_bold{
-	Color : #1D1D1D;
-	Font-Family : Arial;
-	Font-Weight : Bold;
-	Font-Size : 11px;
-	}
-
-.normal_small_text{
-	Color : #1D1D1D;
-	Font-Family : Arial;
-	Font-Weight : Normal;
-	Font-Size : 11px;
-	}
-
-/*
-Table / Row
-*/
-
-#list_row_BG1,.list_row_BG1{
-	Background-Color : #eeeeee;
-	}
-
-#list_row_BG2,.list_row_BG2{
-	Background-Color : #FFFFFF;
-	}
-
-#Application_Table{
-	border-spacing : 10pt;
-	padding : 5px;	
-	Width : 100%;		
-	font-family : "verdana";
-	font-size : 10pt;
-	}
-
-#Form_Table{
-	border-spacing : 10pt;
-	padding : 0pt;	
-	Width : 415px;
-	Font-Family : Arial;
-	Font-Size : 10pt;
-	}
-
-.TableBackGroundColor
-{
-    BACKGROUND-COLOR: #ffffff;
-}
-
-.buttonfontstyle{
-	font-family: Arial, Helvetica, sans-serif; 
-	font-size: 10px; 
-	color:#006699;	
-	Font-Weight : Normal;
-	} 
-
-body{
-	background-color:#FFFFFF;
-	padding:0; margin:0;
-	}
-td{
-	font:normal 12px/16px Arial, Helvetica, sans-serif;
-	color:#000000;
-	}
-a{
-	font:bold 11px/18px Arial, Helvetica, sans-serif;
-	color:#CC0000; outline:none; cursor:pointer; text-decoration:underline;
-	}
-a:hover{
-	text-decoration:none;
-	}
-.spacer {
-font-size:0;
-line-height:0;
-clear:both;
-}
-				
-td, div, img, p, a, ul, h1, h2, form, label, input, select, textarea{
-	padding:0;
-	margin:0;
-	}
-	
-.phoneno{
-	font:normal 12px/16px Arial, Helvetica, sans-serif;
-	color:#CC0000;
-	}
-a.learnmore{
-	font:normal 12px/16px Arial, Helvetica, sans-serif;
-	color:#CC0000;
-	text-decoration:none;
-	}
-.firststepbg{
-	background-color:#CC0000;
-	}
-.firststeptext{
-	font:normal 18px/20px Arial, Helvetica, sans-serif;
-	color:#ffffff;
-	padding:0 0 0 10px;
-	}
-$ pip3 install ffuf 2>&1 | tail -5
-
-Defaulting to user installation because normal site-packages is not writeable
-ERROR: Could not find a version that satisfies the requirement ffuf (from versions: none)
-ERROR: No matching distribution found for ffuf
-$ python3 -c "
-import urllib.request, sys
-url = 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/common.txt'
-try:
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    data = urllib.request.urlopen(req, timeout=30).read().decode()
-    with open('/tmp/common.txt','w') as f:
-        f.write(data)
-    print(f'Downloaded {len(data.splitlines())} lines')
-except Exception as e:
-    print(f'Error: {e}')
-" 2>&1
-
-Downloaded 4751 lines
-$ python3 -c "
-import urllib.request, sys
-url = 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-medium-words-lowercase.txt'
-try:
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    data = urllib.request.urlopen(req, timeout=30).read().decode()
-    with open('/tmp/raft-medium.txt','w') as f:
-        f.write(data)
-    print(f'Downloaded {len(data.splitlines())} lines')
-except Exception as e:
-    print(f'Error: {e}')
-" 2>&1
-
-Downloaded 56293 lines
-$ python3 -c "
-import urllib.request, sys
-url = 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/ASP.txt'
-try:
-    req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-    data = urllib.request.urlopen(req, timeout=30).read().decode()
-    with open('/tmp/asp.txt','w') as f:
-        f.write(data)
-    print(f'Downloaded {len(data.splitlines())} lines')
-except Exception as e:
-    print(f'Error: {e}')
-" 2>&1
-
-Error: HTTP Error 404: Not Found
-$ python3 -c "
-import urllib.request
-urls = {
-    '/tmp/asp_txt.txt': 'https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/burp-parameter-names.txt',
-}
-for path, url in urls.items():
-    try:
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        data = urllib.request.urlopen(req, timeout=30).read().decode()
-        with open(path,'w') as f: f.write(data)
-        print(f'{path}: {len(data.splitlines())} lines')
-    except Exception as e:
-        print(f'{url}: {e}')
-" 2>&1
-
-/tmp/asp_txt.txt: 6453 lines
-$ python3 << 'PYEOF'
-import urllib.request, json, sys, socket, ssl
-
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-# CRT.sh for subdomains
-try:
-    req = urllib.request.Request("https://crt.sh/?q=%.structuredweb.dell.com&output=json", headers={'User-Agent': 'Mozilla/5.0'})
-    data = urllib.request.urlopen(req, timeout=20, context=ctx).read().decode()
-    subs = set()
-    for entry in json.loads(data):
-        name = entry.get('name_value','')
-        for n in name.split('\n'):
-            n = n.strip()
-            if n.endswith('structuredweb.dell.com'):
-                subs.add(n)
-    for s in sorted(subs):
-        print(s)
-except Exception as e:
-    print(f"CRT error: {e}", file=sys.stderr)
-
-# Also check structuredweb.com subdomains
-try:
-    req = urllib.request.Request("https://crt.sh/?q=%.structuredweb.com&output=json", headers={'User-Agent': 'Mozilla/5.0'})
-    data = urllib.request.urlopen(req, timeout=20, context=ctx).read().decode()
-    subs = set()
-    for entry in json.loads(data):
-        name = entry.get('name_value','')
-        for n in name.split('\n'):
-            n = n.strip()
-            if n.endswith('structuredweb.com'):
-                subs.add(n)
-    for s in sorted(subs):
-        print(s)
-except Exception as e:
-    print(f"CRT structuredweb error: {e}", file=sys.stderr)
-PYEOF
-
-CRT structuredweb error: HTTP Error 404: Not Found
-structuredweb.dell.com
-$ python3 << 'PYEOF'
-import urllib.request, sys, ssl
-
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-paths = [
-    "/sw/admin/", "/admin/", "/swchannel/", "/sw/login.asp", "/sw/admin.asp",
-    "/swchannel/admin/", "/swchannel/login.asp", "/swchannel/default.asp",
-    "/sw/default.asp", "/default.asp", "/index.asp", "/login.asp",
-    "/sw/swchannel/", "/api/", "/sw/api/", "/swchannel/api/",
-    "/.env", "/robots.txt", "/sitemap.xml", "/sw/web.config",
-    "/web.config", "/swchannel/submit_signup.asp", "/sw/scripts/",
-    "/sw/themes/", "/sw/app/", "/Scripts/", "/swchannel/process.asp",
-    "/swchannel/register.asp", "/backup/", "/sw/backup/",
-    "/swchannel/backup/", "/sw/include/", "/swchannel/include/",
-    "/sw/_private/", "/swchannel/_private/",
-    "/cfide/", "/sw/cfide/",
-]
-
-base = "https://structuredweb.dell.com"
-for p in paths:
-    try:
-        url = base + p
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36'})
-        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
-        code = resp.getcode()
-        size = len(resp.read())
-        if code != 404 and code != 403:
-            print(f"[{code}] ({size}B) {p}")
-        resp.close()
-    except urllib.error.HTTPError as e:
-        if e.code != 404:
-            print(f"[{e.code}] {p}")
-    except Exception as e:
-        pass
-PYEOF
-
-[200] (9596B) /sw/admin/
-[200] (3239B) /admin/
-[200] (3239B) /swchannel/
-[200] (9596B) /sw/login.asp
-[200] (3239B) /sw/admin.asp
-[200] (3239B) /swchannel/admin/
-[200] (3239B) /swchannel/login.asp
-[200] (3239B) /swchannel/default.asp
-[200] (9596B) /sw/default.asp
-[200] (3239B) /default.asp
-[200] (3239B) /index.asp
-[200] (3239B) /login.asp
-[403] /sw/swchannel/
-[200] (3239B) /api/
-[200] (3239B) /sw/api/
-[200] (3239B) /swchannel/api/
-[403] /.env
-[200] (300B) /robots.txt
-[200] (3239B) /sw/web.config
-[200] (3239B) /web.config
-[200] (3239B) /swchannel/submit_signup.asp
-[403] /sw/scripts/
-[403] /sw/themes/
-[200] (9596B) /sw/app/
-[403] /Scripts/
-[200] (3239B) /swchannel/process.asp
-[200] (3239B) /swchannel/register.asp
-[200] (3239B) /backup/
-[200] (3239B) /sw/backup/
-[200] (3239B) /swchannel/backup/
-[200] (3239B) /sw/include/
-[200] (3239B) /swchannel/include/
-[200] (3239B) /sw/_private/
-[200] (3239B) /swchannel/_private/
-[396] /cfide/
-[396] /sw/cfide/
-$ curl -sI "https://structuredweb.dell.com/sw/admin/" 2>&1 | head -20
-
-HTTP/2 302 
-date: Tue, 09 Jun 2026 09:26:45 GMT
-content-type: text/html
-content-length: 145
-cache-control: private,no-store
-pragma: no-cache
-location: /sw/site/login/login.asp
-server: StructuredWeb
-set-cookie: ASPSESSIONIDSAQTRTQQ=PGNLFBJDPFNCNDHMPNALNPDO; path=/
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
-
-$ curl -sI "https://structuredweb.dell.com/sw/login.asp" 2>&1 | head -20
-
-HTTP/2 302 
-date: Tue, 09 Jun 2026 09:26:46 GMT
-content-type: text/html
-content-length: 145
-cache-control: private,no-store
-pragma: no-cache
-location: /sw/site/login/login.asp
-server: StructuredWeb
-set-cookie: ASPSESSIONIDAQBSBDTC=DAHHIJNDGACJIJKPNBFFGMBN; path=/
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
-
-$ curl -sI "https://structuredweb.dell.com/.env" 2>&1 | head -20
-
-HTTP/2 403 
-server: awselb/2.0
-date: Tue, 09 Jun 2026 09:26:46 GMT
-content-type: text/html
-content-length: 118
-
-$ curl -s "https://structuredweb.dell.com/robots.txt" 2>/dev/null
-
-User-agent: *
-Disallow: /sw/swchannel/productcatalogcf_v2/internet
-Disallow: /sw/swchannel/productcatalogcf_v2/internet/
-Disallow: /sw/swchannel/productcatalogcf_v2/internet/*
-Disallow: /sw/swchannel/productcatalogcf_v2/internet/*.asp
-Disallow: /sw/swchannel/productcatalogcf_v2/internet/*.cfm
-$ curl -s "https://structuredweb.dell.com/sw/swchannel/" 2>&1 | head -50
-
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1"/>
-<title>403 - Forbidden: Access is denied.</title>
-<style type="text/css">
-<!--
-body{margin:0;font-size:.7em;font-family:Verdana, Arial, Helvetica, sans-serif;background:#EEEEEE;}
-fieldset{padding:0 15px 10px 15px;} 
-h1{font-size:2.4em;margin:0;color:#FFF;}
-h2{font-size:1.7em;margin:0;color:#CC0000;} 
-h3{font-size:1.2em;margin:10px 0 0 0;color:#000000;} 
-#header{width:96%;margin:0 0 0 0;padding:6px 2% 6px 2%;font-family:"trebuchet MS", Verdana, sans-serif;color:#FFF;
-background-color:#555555;}
-#content{margin:0 0 0 2%;position:relative;}
-.content-container{background:#FFF;width:96%;margin-top:8px;padding:10px;position:relative;}
--->
-</style>
-</head>
-<body>
-<div id="header"><h1>Server Error</h1></div>
-<div id="content">
- <div class="content-container"><fieldset>
-  <h2>403 - Forbidden: Access is denied.</h2>
-  <h3>You do not have permission to view this directory or page using the credentials that you supplied.</h3>
- </fieldset></div>
-</div>
-</body>
-</html>
-$ curl -sI "https://structuredweb.dell.com/sw/site/login/login.asp" 2>&1 | head -20
-
-HTTP/2 200 
-date: Tue, 09 Jun 2026 09:26:53 GMT
-content-type: text/html
-content-length: 9596
-cache-control: no-cache,no-store
-pragma: no-cache
-server: StructuredWeb
-p3p: CP="NON NOR OUR CONo"
-set-cookie: loginType=7MqrB8NQ5LrAaGYDhpRljA2; expires=Tue, 09-Jun-2026 10:26:52 GMT; path=/
-set-cookie: SWCONTEXTLONG=0; path=/
-set-cookie: SWSESSIONID=E292686EF8A48195101B1598C981FA77; path=/
-set-cookie: ASPSESSIONIDSAQTRTQQ=AHNLFBJDLIHAOBEHDPAIHHPC; path=/
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
-x-frame-options: SAMEORIGIN
-
-$ curl -s "https://structuredweb.dell.com/sw/site/login/login.asp" 2>/dev/null | head -100
-
-<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
-<HTML>
-<HEAD>
-<META HTTP-EQUIV="Content-Type" CONTENT="text/html;charset=utf-8">
-<!-- Copyright (c) StructuredWeb 1999-2007 -->
-<!-- SERVER=swmail01 -->
-<link REL='stylesheet' HREF='/sw/themes/5/theme5.css' TYPE='text/css'><title>StructuredWeb</title>
-
-
-
-<link href="/sw/app/CommonUI/CSS/global.css" rel="stylesheet" type="text/css" />
-<link href="/sw/app/CommonUI/CSS/fonts/ss-pika/webfonts/ss-pika.css" type="text/css" rel="stylesheet">
-
-
-<script language="JavaScript" SRC="/sw/scripts/sw_funcs.js"></script>
-<script language="JavaScript">
-
-    if (location.href.includes("newlogin=1")) {
-        location.href = "/sw/app/Login/v2/loginRedirect.aspx?vendor=shareRedirect&scope=" + location.href.split("SWSCOPEID=")[1].split("&")[0] + "&csid=" + location.href.split("DefaultLibraryID=")[1].split("&")[0];
-    }
-
-    function showHideAccountHelp() {
-        var helpTextElem = document.getElementById("accountHelp");
-
-        if (helpTextElem.style.display == 'none') {
-            helpTextElem.style.display = 'block';
-        }
-        else {
-            helpTextElem.style.display = 'none';
-        }
-    }
-
-    // Functions From sw_funcs.js
-    function load_swLogin() {
-        top.document.swLogin.txtUserName.focus();
-    }
-    function load_swAddrLogin() {
-        top.document.swLogin.txtSiteAddress.focus();
-    }
-    function chk_swUser() {
-        //alert("sw_User");
-
-        var isOk
-        var FieldUserName = document.swLogin.txtUserName
-        var FieldPassword = document.swLogin.txtPassword
-
-        if (typeof (document.swLogin.LoginUserID) != 'undefined') {
-            var FieldLoginCookie = document.swLogin.LoginUserID;
-            if (!IsEmpty(FieldLoginCookie)) {
-                var ab = document.getElementById("btnSubmit");
-                ab.disabled = true;
-                document.swLogin.submit();
-            }
-        }
-
-        isOk = IsEmpty(FieldUserName)
-        if (isOk) {
-            isOk = IsEmpty(FieldPassword)
-        }
-        if (isOk) {
-            var ab = document.getElementById("btnSubmit");
-            ab.disabled = true;
-            document.swLogin.submit();
-        }
-
-    }
-    function chk_swUserURL() {
-        //alert("sw_UserURL");
-
-        var isOk
-        var FieldSiteAddress = document.swLogin.txtSiteAddress
-        var FieldUserName = document.swLogin.txtUserName
-        var FieldPassword = document.swLogin.txtPassword
-        var Patern = document.swLogin.patern.value
-
-        if (typeof (document.swLogin.LoginUserID) != 'undefined') {
-            var FieldLoginCookie = document.swLogin.LoginUserID;
-            if (!IsEmpty(FieldLoginCookie)) {
-                var ab = document.getElementById("btnSubmit");
-                ab.disabled = true;
-                document.swLogin.submit();
-            }
-        }
-
-        isOk = IsEmpty(FieldSiteAddress)
-        var iSiteAddress = parseInt(FieldSiteAddress.value);
-        if (parseInt(FieldSiteAddress.value) > 2147483647) {
-            alert("Invalid Account ID. Please enter a valid Account ID.");
-            isOk = false;
-        }
-
-        if (isOk) {
-            isOk = IsEmpty(FieldUserName)
-            if (isOk) {
-                isOk = IsEmpty(FieldPassword)
-            }
-            if (isOk) {
-                var PaternSiteAddress = document.swLogin.txtSiteAddress.value.toLowerCase()
-                var re = new RegExp(Patern)
-                var FormatSiteAddress = document.swLogin.WebSiteAddress.value
-$ python3 << 'PYEOF'
-import urllib.request, sys, ssl
-
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-base = "https://structuredweb.dell.com"
-paths = [
-    "/sw/swchannel/productcatalogcf_v2/internet/",
-    "/sw/swchannel/productcatalogcf_v2/",
-    "/sw/swchannel/productcatalogcf_v2/internet/index.cfm",
-    "/sw/swchannel/productcatalogcf_v2/internet/admin.cfm",
-    "/CFIDE/administrator/",
-    "/CFIDE/administrator/index.cfm",
-    "/CFIDE/administrator/enter.cfm",
-    "/sw/CFIDE/administrator/",
-    "/sw/cfide/administrator/",
-    "/sw/site/",
-    "/sw/site/login/",
-    "/sw/site/admin/",
-    "/swchannel/productcatalogcf_v2/",
-]
-
-for p in paths:
-    try:
-        url = base + p
-        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-        resp = urllib.request.urlopen(req, timeout=10, context=ctx)
-        code = resp.getcode()
-        size = len(resp.read())
-        if code != 404:
-            print(f"[{code}] ({size}B) {p}")
-        resp.close()
-    except urllib.error.HTTPError as e:
-        if e.code not in [404]:
-            print(f"[{e.code}] {p}")
-    except Exception as e:
-        print(f"[ERR] {p}: {e}")
-PYEOF
-
-[403] /sw/swchannel/productcatalogcf_v2/internet/
-[403] /sw/swchannel/productcatalogcf_v2/
-[200] (3239B) /sw/swchannel/productcatalogcf_v2/internet/index.cfm
-[200] (3239B) /sw/swchannel/productcatalogcf_v2/internet/admin.cfm
-[396] /CFIDE/administrator/
-[396] /CFIDE/administrator/index.cfm
-[396] /CFIDE/administrator/enter.cfm
-[396] /sw/CFIDE/administrator/
-[396] /sw/cfide/administrator/
-[403] /sw/site/
-[403] /sw/site/login/
-[200] (3239B) /sw/site/admin/
-[200] (3239B) /swchannel/productcatalogcf_v2/
-$ curl -s "https://structuredweb.dell.com/sw/site/login/login.asp" 2>/dev/null | tail -200
-
-            alert("Invalid Account ID. Please enter a valid Account ID.");
-            isOk = false;
-        }
-
-        if (isOk) {
-            isOk = IsEmpty(FieldUserName)
-            if (isOk) {
-                isOk = IsEmpty(FieldPassword)
-            }
-            if (isOk) {
-                var PaternSiteAddress = document.swLogin.txtSiteAddress.value.toLowerCase()
-                var re = new RegExp(Patern)
-                var FormatSiteAddress = document.swLogin.WebSiteAddress.value
-                if (PaternSiteAddress.search(re) == -1) {
-                    //alert("Url not valid")
-                    //alert ("Your website address must have the format:  " + FormatSiteAddress + "\nThat is, your fully qualified domain name, starting with 'www'")
-                    //document.swLogin.txtSiteAddress.focus();
-                    //document.swLogin.txtSiteAddress.select();
-                    //isOk = false;
-                }
-
-            }
-        }
-        if (isOk) {
-            var ab = document.getElementById("btnSubmit");
-            ab.disabled = true;
-            document.swLogin.submit();
-        }
-    }
-
-    function FlipRememberCheck() {
-        var CheckAddress = document.swLogin.chkRemember;
-        if (CheckAddress.checked) {
-            CheckAddress.checked = false;
-        }
-        else {
-            CheckAddress.checked = true;
-        }
-    }
-
-</script>
-
-</script>
-
-
-
-</head>
-
-<script language="JavaScript"> 
-    function DaughterWindow(URL) {
-        open(URL, "", "resizable,width=800,height=600,scrollbars=yes");
-    }
-
-    function DaughterWindowHelp(URL) {
-        xWindow = window.open(URL, "", "resizable,width=700,height=500,top=0,left=0,scrollbars=yes");
-    }
-</script>
-
-<body >
-
-
-<!--[if lte IE 9]>
-<div class="centeredwrapper_quirky">
-<div class="centeredwrapper_quirky_fix">
-<![endif]-->
-<!--[if (gt IE 9)|!(IE)]><!--> 
-<div class="centeredwrapper">
-<!--<![endif]-->
-
-	<div class="login_logo">
-	
-		<!--[if lte IE 9]>
-		<div class="login_logo_quirky">
-		<![endif]-->
-	
-		<div class="login_logo_figure">
-			<img SRC="/sw/themes/5/images/logo_login_32.gif" ALT="StructuredWeb">
-		</div>
-		
-		<h1>Login</h1>
-		
-		<!--[if lte IE 9]>
-		</div>
-		<!--<![endif]-->
-	
-	</div>
-	
-	<!---
-	<a href="Javascript:DaughterWindow('/sw/swchannel/UserManual/UserManual.cfm?AppID=24&amp;MethodID=-1');">
-			<img SRC="/sw/themes/5/images/help2.gif" border="0" ALT="StructuredWeb HelpCenter" hspace="5" vspace="5">
-		</a>
-	-->	
-
-	<div class="login_formbg">
-	
-	<form method="POST" action="/sw/app/Login/v2/loginRedirect.aspx" name="swLogin" onsubmit="chk_swUserURL();return false;">
-	
-		
-	<div id="loginBoxDiv">
-		
-		
-		<label class="login_box_text">
-			Account ID<a class="project" href="javascript:showHideAccountHelp();"><img src="/sw/app/CommonUI/Images/Button/blue_question_sm.gif" width="14" height="15" alt=""></a>
-		</label>
-	
-	
-	<div id="accountHelp" style="display: none;" class="login_checkboxtext">
-		<span>Please enter your Account ID (ex. 1792)</span>
-	</div>
-	
-			<input name="txtSiteAddress" type="text" maxlength="120" class="login_formfield login_padbuttom1" value="" tabindex="1">
-			
-			<label class="login_box_text">Username</label>
-
-			
-
-			<input type="text" name="txtUserName" maxlength="50" class="login_formfield login_padbuttom2" value="" tabindex="2">
-
-				
-				<label class="login_box_text login_forget">Password <a href="/sw/app/Login/PWHelp.aspx">I forgot</a></label>
-			
-					<input type="password" name="txtPassword" class="login_formfield" maxlength="50" value="" tabindex="3" autocomplete="off">
-				
-			<input type="hidden" name="isHashedPassword" value="False">
-			
-
-
-				<input type="hidden" name="iAttempts" value="0">
-				<input type="hidden" name="WebSiteAddress" value="www.empiretech.atworkweb.com">
-				<input type="hidden" id="patern" name="patern" value="^((([www]+(\.[a-z0-9-]+)*(\.[a-z]{2,4}))|(([0-9]{1,4}\.){3}([0-9]{1,3})))((/|\?)[a-z0-9~#%&amp;'_\+=:\?\.-]*)*)$">
-				<input type="hidden" name="testForJs" id="testForJs" value="">
-			
-			
-			
-			<div class="login_pading"  style='display: none'>
-				<input type="checkbox" id="chkRemember" class="login_checkbox"  name="chkRemember" value="1">
-				<label class="login_checkboxtext" onclick="FlipRememberCheck();">Keep me signed in for 24 hours<span>Don't check this box if you're at a public or shared computer</span>
-				</label>
-			</div>
-
-			
-			<input type="image" tabindex="4" class="login_buttonpad" src="/sw/app/CommonUI/Images/Button/login_button.gif" value="Continue" id="btnSubmit" name="btnSubmit" onclick="chk_swUserURL();return false;">
-			
-				
-		<input type="hidden" name="scope" value="intranet">
-	</div>
-	</form>		
-	
-	
-	
-	<!--[if lte IE 9]>
-		</div>
-	<!--<![endif]-->
-		
-	</div>
-	
-	<script language="javascript">
-        document.getElementById('testForJs').value = "hasJs";
-	
-
-	
-
-            load_swAddrLogin();
-    </script>
-
-
-</div>
-<!-- Google Code for Login page retargeting tag [Managed by template audience id 0] Conversion Page -->
-<!-- Remarketing tags may not be associated with personally identifiable information or placed on pages related to sensitive categories. For instructions on adding this tag and more information on the above requirements, read the setup guide: google.com/ads/remarketingsetup -->
-<script type="text/javascript">
-
-    // append to loginredirect
-    setTimeout(() => {
-        if (location.href.split("?")[1].toLowerCase().includes("isshareurl")) {
-            document.swLogin.action = document.swLogin.action + "?vendor=shareLink"
-        }
-
-        else {
-            document.swLogin.action = document.swLogin.action + "?vendor=classicLogin"
-        }
-    }, 0);
-
-
-    /* <![CDATA[ */
-    var google_conversion_id = 1072668527;
-    var google_conversion_label = "su2rCKuzoV8Q776-_wM";
-    var google_custom_params = window.google_tag_params;
-    var google_remarketing_only = true;
-    /* ]]> */
-</script>
-<script type="text/javascript" src="//www.googleadservices.com/pagead/conversion.js">
-</script>
-<noscript>
-<div style="display:inline;">
-<img height="1" width="1" style="border-style:none;" alt="" src="//googleads.g.doubleclick.net/pagead/viewthroughconversion/1072668527/?value=1.00&amp;currency_code=USD&amp;label=su2rCKuzoV8Q776-_wM&amp;guid=ON&amp;script=0"/>
-</div>
-</noscript>
-</body>
-
-</html>
-$ curl -sI "https://structuredweb.dell.com/sw/app/Login/v2/loginRedirect.aspx" 2>&1 | head -20
-
-HTTP/2 200 
-date: Tue, 09 Jun 2026 09:27:13 GMT
-content-type: text/html; charset=utf-8
-content-length: 472
-cache-control: private,no-store
-pragma: no-cache
-server: StructuredWeb
-p3p: CP="NON NOR OUR CONo"
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
-x-frame-options: SAMEORIGIN
-
-$ curl -sI "https://structuredweb.dell.com/CFIDE/administrator/" 2>&1 | head -20
-
-HTTP/2 396 
-server: awselb/2.0
-date: Tue, 09 Jun 2026 09:27:14 GMT
-content-length: 42
-content-type: text/plain
-
-$ curl -s "https://structuredweb.dell.com/CFIDE/administrator/" 2>/dev/null | head -50
-
-403 Forbidden
-Reference Code: AB12CD34EF08
-#!/usr/bin/env python3
-import urllib.request, sys, ssl, threading, time, queue, os
-
-ctx = ssl.create_default_context()
-ctx.check_hostname = False
-ctx.verify_mode = ssl.CERT_NONE
-
-BASE = sys.argv[1]
-WORDLIST = sys.argv[2]
-THREADS = int(sys.argv[3]) if len(sys.argv) > 3 else 20
-EXT = sys.argv[4] if len(sys.argv) > 4 else ""
-
-results = []
-lock = threading.Lock()
-q = queue.Queue()
-
-def worker():
-    while True:
-        try:
-            word = q.get(timeout=1)
-        except:
-            break
-        word = word.strip()
-        if not word or word.startswith('#'):
-            q.task_done()
-            continue
-        try:
-            path = f"{BASE}/{word}{EXT}"
-            req = urllib.request.Request(path, headers={
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'
-            })
-            resp = urllib.request.urlopen(req, timeout=8, context=ctx)
-            code = resp.getcode()
-            size = len(resp.read())
-            resp.close()
-            if code not in [404] and size != 3239:
-                with lock:
-                    results.append(f"[{code}] ({size}B) /{word}{EXT}")
-                    sys.stdout.write(f"[{code}] ({size}B) /{word}{EXT}\n")
-                    sys.stdout.flush()
-        except urllib.error.HTTPError as e:
-            if e.code not in [404, 410]:
-                with lock:
-                    results.append(f"[{e.code}] /{word}{EXT}")
-                    sys.stdout.write(f"[{e.code}] /{word}{EXT}\n")
-                    sys.stdout.flush()
-        except Exception as e:
-            pass
-        q.task_done()
-
-with open(WORDLIST) as f:
-    for line in f:
-        q.put(line.strip())
-
-print(f"[*] Fuzzing {BASE} with {q.qsize()} words, {THREADS} threads, ext={EXT}")
-for _ in range(THREADS):
-    t = threading.Thread(target=worker, daemon=True)
-    t.start()
-q.join()
-print(f"\n[*] Done. Found {len(results)} results.")
-for r in results:
-    print(r)
-$ curl -s "https://structuredweb.dell.com/sw/app/Login/v2/loginRedirect.aspx" 2>/dev/null | head -100
-
-<form id='submitForm' method='POST' action='/sw/site/login/submit_login.asp?newlogin=False&vendor=structuredweb' hidden></form><script>localStorage.clear(); setTimeout(() => {document.getElementById('submitForm').submit();}, 0)</script><form id='submitForm' method='POST' action='/sw/site/login/submit_login.asp?newlogin=False&vendor=structuredweb' hidden></form><script>localStorage.clear(); setTimeout(() => {document.getElementById('submitForm').submit();}, 0)</script>
-$ curl -s "https://structuredweb.dell.com/sw/app/Login/PWHelp.aspx" 2>/dev/null | head -100
-
-
-<!DOCTYPE html>
-<meta http-equiv="X-UA-Compatible" content="IE=edge" />  
-<html xmlns="http://www.w3.org/1999/xhtml" >
-	
-    <!-- Version: 2026-6-1_212117 -->
-    <!-- Branch: main -->
-    <head>
-        
-<script type="text/javascript" src="//use.typekit.net/nsv4xcc.js"></script>
-<script src="https://structuredweb.dell.com/sw/app/CommonUI/JS/Vendor/loadTypekit.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>
-<link rel="stylesheet" href="https://filestorage.structuredweb.com/common/ss-pika/webfonts/ss-pika.css">
-<!-- setup js/css and things that are always included-->
-<script src="https://structuredweb.dell.com/sw/app/CommonUI/JS/global.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>
-<script src="https://structuredweb.dell.com/sw/app/CommonUI/JS/formHelper.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>
-<script src="https://filestorage.structuredweb.com/common/ss-pika/webfonts/ss-pika.js" language="javascript" type="text/javascript"></script>
-
-<script src="https://structuredweb.dell.com/sw/app/CommonUI/js/jquery.min.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>  
-<script src="https://structuredweb.dell.com/sw/app/CommonUI/js/jquery-migrate.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>  
-    <script src="https://structuredweb.dell.com/sw/app/CommonUI/js/lib/bootstrap.min.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>
-<link rel="StyleSheet" href="https://structuredweb.dell.com/sw/app/CommonUI/CSS/themeLegacy.css?v=2026-6-1_212117" type="text/css" />
-<link rel="StyleSheet" href="https://structuredweb.dell.com/sw/app/CommonUI/CSS/bootstrap/bootstrap.min.css?v=2026-6-1_212117" type="text/css" />
-<link rel="StyleSheet" href="https://structuredweb.dell.com/sw/app/CommonUI/CSS/global.css?v=2026-6-1_212117" type="text/css"/>
-<link rel="StyleSheet" href="https://structuredweb.dell.com/sw/app/CommonUI/CSS/ui.css?v=2026-6-1_212117" type="text/css"/>
-
-        <script src="https://structuredweb.dell.com/sw/app/CommonUI/JS/resizeIFrame.js?v=2026-6-1_212117" language="javascript" type="text/javascript"></script>
-        
-    <title>Password Reset</title>
-    
-    
-    <script src='https://www.google.com/recaptcha/api.js'></script>
-
-        <script language="javascript" type="text/javascript">
-            function OnLoad() 
-            {
-                
-			    
-            }
-        </script>
-        
-    </head>
-    
-    
-    <body class="aspBody " onload="OnLoad()">
-		<div class="aspContainer container">	
-            
-<div class="centeredwrapper">
-    <div class="login_logo">
-		<div class="login_logo_figure">
-		</div>
-	</div>
-    <div>
-        <span style="display: none;" id="spanErrorText"></span>
-    </div>
-    <div class="login_formbg3">
-        <div class="login_checkboxtext2">
-            <span id="spanText">
-                Please enter your account ID and either your username or email address and click send. An email with a password reset link will be sent to your email address.
-		        <br/><br/>
-                If you don&#39;t know your account ID, username or email, please contact your site administrator.
-                
-	        </span>
-            <br/>
-        </div>
-        <br />
-        <div class="split"></div><br />
-     
-                <div class="requestText ">
-                    <span> Reset Your Password Using:</span>
-                </div><br />
-         
-        <div class="container">
-            <div class="col-md-2"></div>
-            <div class="col-md-4">
-                <button class="btn btn-block btn-secondary custom-btn2" onclick="event.PreventDefault; event.StopPropagation; showEmailForm();">
-                    Email
-                </button>
-            </div>
-            <div class="col-md-4">
-                <button class="btn btn-block btn-secondary custom-btn2" onclick="event.PreventDefault; event.StopPropagation; showIdUnForm()">
-                    Username
-                </button>
-            </div>
-            <div class="col-md-2"></div>        
-        </div>
-        <br /><br /><br />
-        <div class="split"></div><br /> 
-        <form name="frm1" method="post" action="get">
-            
-            
-            <div class="login_checkboxtext2larger">
-                <span>
-	                Account ID
-	            </span>
-            </div>
-		    <input 
-			    type="text"
-			    name="txtWebAddress" 
-                id="txtWebAddress" 
-			    value="" 
-$ curl -sI "https://structuredweb.dell.com/sw/swchannel/UserManual/UserManual.cfm?AppID=24&MethodID=-1" 2>&1 | head -20
-
-HTTP/2 302 
-date: Tue, 09 Jun 2026 09:27:28 GMT
-content-type: text/html;charset=UTF-8
-content-length: 0
-location: https://structuredweb.dell.com/sw/app/Login/v2/loginRedirect.aspx?vendor=structuredweb
-cache-control: no-cache,no-store
-pragma: no-cache,no-cache
-server: StructuredWeb
-content-security-policy: default-src https: http: data: wss: blob: 'unsafe-inline'; object-src 'none'; script-src 'self' https: http: 'unsafe-eval' 'unsafe-inline'
-referrer-policy: strict-origin-when-cross-origin
-strict-transport-security: max-age=15768000; includeSubDomains
-x-content-type-options: nosniff
-
-$ curl -s "https://structuredweb.dell.com/sw/app/CommonUI/JS/global.js" 2>/dev/null | head -400
-
-function getGenericShareLink(callback) {
-    var URL = location.href.replace(/SWSESSIONID=\w*&?/, "");
-    $.ajax({
-        url: "/sw/app/ServicePages/Campaign/GetShareURLGeneric.aspx",
-        type: 'post',
-        data: { "URL": URL },
-        success: (res) => {
-            callback(res);
-        },
-        error: () => {
-            callback("Could Not Get Share Link");
-        }
-    });
-}
-
-function getInternetExplorerVersion()
-// Returns the version of Internet Explorer or a -1
-// (indicating the use of another browser).
-{
-    var rv = 999; // Return value assumes failure or not IE
-    if (navigator.appName == 'Microsoft Internet Explorer') {
-        var ua = navigator.userAgent;
-        var re = new RegExp("MSIE ([0-9]{1,}[\.0-9]{0,})");
-        if (re.exec(ua) != null)
-            rv = parseFloat(RegExp.$1);
-    }
-    return rv;
-}
-
-function parseJSON(jsonData) {
-    var browserVersion = getInternetExplorerVersion();
-
-    if (browserVersion < 999) {
-        jsonData = eval('(' + jsonData + ')');
-    }
-    else {
-        jsonData = JSON.parse(jsonData);
-    }
-    return jsonData;
-}
-
-//also in sw_funcs
-function addUrlParameters(url, parameters) {
-    if (parameters.length % 2 == 0) {
-        var seperator = '?';
-        if (url.indexOf('?') != -1) {
-            seperator = '&';
-        }
-
-        for (var i = 0; i < parameters.length; i = i + 2) {
-            url += seperator + parameters[i] + '=' + parameters[i + 1];
-            seperator = '&';
-        }
-    }
-    return url;
-}
-
-function buildAjaxData(parameters) {
-    var seperator = '&';
-    var result = '';
-    if (parameters.length % 2 == 0) {
-        for (var i = 0; i < parameters.length; i = i + 2) {
-            result += (i == 0 ? '' : seperator);
-            result += parameters[i] + '=' + parameters[i + 1];
-        }
-    }
-    return result;
-}
-
-function encodeParams(params) {
-    var encodedParams = [];
-    for (var i = 0; i < params.length; i++) {
-        encodedParams[i] = encodeURIComponent(params[i]);
-    }
-    return encodedParams;
-}
-
-function simpleAjax(urlId, callback, errorCallback, data) {
-    var url = document.getElementById(urlId).value;
-    var params = new Array();
-    params.push("ajax");
-    params.push("true");
-    var opts = { params: params, disableCache: true };
-
-    if (data) {
-        ajaxPost(url, callback, errorCallback, data, opts);
-    } else {
-        ajaxGet(url, callback, errorCallback, opts);
-    }
-}
-
-function simpleHTMLInjectionAjax(urlId, injectTargetId, errorCallback, data) {
-    var callback = function (result) { document.getElementById(injectTargetId).innerHTML = result; };
-    simpleAjax(urlId, callback, errorCallback, data);
-}
-
-function simpleJsonAjax(urlId, callback, errorCallback, data) {
-    var foo = function (result) { AjaxJsonResponseCallback(result, callback); };
-    simpleAjax(urlId, foo, errorCallback, data);
-}
-
-function ajaxGet(url, callback, errorCallBack, opts) {
-    if (typeof opts === "undefined") {
-        opts = { method: 'GET' };
-    }
-    else if (typeof opts.method === "undefined") {
-        opts.method = 'GET';
-    }
-    SWAjax(url, callback, errorCallBack, null, opts);
-}
-
-function ajaxPost(url, callback, errorCallBack, data, opts) {
-    if (typeof opts === "undefined") {
-        opts = { method: 'POST' };
-    }
-    else if (typeof opts.method === "undefined") {
-        opts.method = 'POST';
-    }
-
-    data = AttachCSRFToken(data, "CSRFToken");
-    SWAjax(url, callback, errorCallBack, data, opts);
-}
-
-function isLoginURL(url) {
-    if (url && typeof url == "string") {
-        return (url.indexOf('site/login/login.asp') >= 0);
-    }
-    return false;
-}
-
-// <summary>
-// available parameters in opts
-// params : additional url params that are going to be urlencoded
-// disableCache : in order to disable cache, it passes additional url param with timestamp
-// example
-//var url = location.href;
-// var params = new Array();
-// params.push("ajax");
-// params.push("true");
-// params.push("isOptionNameDupliacte");
-// params.push("True");
-// params.push("optionName");
-// params.push(optionName);
-// ajaxGet(url, callbackCheckDuplicationOption, globalAjaxErrorHandler, { params: params, disableCache: true });
-// </summary>
-function SWAjax(url, callback, errorCallBack, data, opts) {
-    var disableCachingParam = 'rnd';
-
-    if (typeof errorCallBack === "undefined") {
-        errorCallBack = globalAjaxErrorHandler;
-    }
-
-    if (typeof opts !== "undefined" && typeof opts.params !== "undefined") {
-        var params = encodeParams(opts.params);
-        url = addUrlParameters(url, params);
-    }
-
-    if (typeof opts !== "undefined" && typeof opts.disableCache !== "undefined") {
-        url = addUrlParameters(url, [disableCachingParam, new Date().getTime()]);
-    }
-
-    var method = "GET";
-    if (typeof opts !== "undefined" && typeof opts.method !== "undefined") {
-        method = opts.method;
-    }
-
-    var xmlhttp;
-    if (window.XMLHttpRequest) {
-        // code for IE7+, Firefox, Chrome, Opera, Safari
-        try {
-            xmlhttp = new XMLHttpRequest();
-        }
-        catch (whatThe) {
-            xmlhttp = new window.XMLHttpRequest();
-        }
-    } else {
-        // code for IE6, IE5
-        xmlhttp = new ActiveXObject("Microsoft.XMLHTTP");
-    }
-
-    xmlhttp.onreadystatechange = function () {
-        if (xmlhttp.readyState == 4 && xmlhttp.status == 200) {
-            if (xmlhttp.responseURL && isLoginURL(xmlhttp.responseURL)) {
-                window.location = xmlhttp.responseURL;
-            } else {
-                callback(xmlhttp.responseText);
-            }
-
-        }
-        else if (xmlhttp.readyState == 4 && (xmlhttp.status == 500 || xmlhttp.status == 400 || xmlhttp.status == 403)) {
-            //return JSON Object
-            try {
-                var result = xmlhttp.responseText;
-                result = parseJSON(result);
-                errorCallBack(result);
-            } catch (e) {
-                errorCallBack(xmlhttp.responseText);
-            }
-        }
-    };
-
-    xmlhttp.open(method, url, true);
-
-    if (method == 'POST') {
-        xmlhttp.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
-    }
-
-    xmlhttp.send(data);
-}
-
-function globalAjaxErrorHandler(message) {
-    //do nothing
-}
-
-//ajax callback wrapper, assumes the response is JSON if it is not or if the object is a SWAjaxError (has errorInfo and display properties)
-//treats it as an error and displays an apropriate error message, return true on success and calls onSuccess (see also: AjaxResponseCallback)
-//onSWError is only called if an SWAjaxError is returned with display false
-function AjaxJsonResponseCallback(result, onSuccess, onSWError) {
-    var resultObj;
-    try {
-        resultObj = JSON.parse(result);
-        if (typeof resultObj.errorInfo !== "undefined" && typeof resultObj.display !== "undefined") {
-            if (resultObj.display == true) {
-                alert(resultObj.errorInfo);
-                return false;
-            } else {
-                onSWError(resultObj);
-                return false;
-            }
-        }
-    }
-    catch (ex) {
-        var defaultErrorMessage = getValue('Ajax_Update_Error_Message');
-        alert(defaultErrorMessage);
-        return false;
-    }
-    if (onSuccess) {
-        onSuccess(resultObj);
-    }
-    return true;
-}
-
-//ajax callback wrapper assumes the response is not JSON but tries to parse the response as JSON incase it is a JSON representation of SWAjaxError
-//in the case of SWAjaxError handles it as apropriate and returns false, else returns true and calls onSuccess (see also: AjaxJsonResponseCallback)
-//onSWError is only called if an SWAjaxError is returned with display false
-function AjaxResponseCallback(result, onSuccess, onSWError) {
-    try {
-        var resultObj = JSON.parse(result);
-        if (typeof resultObj.errorInfo !== "undefined" && typeof resultObj.display !== "undefined") {
-            if (resultObj.display == true) {
-                alert(resultObj.errorInfo);
-                return false;
-            } else {
-                onSWError(resultObj);
-                return false;
-            }
-        }
-    }
-    catch (ex) { }
-
-    if (onSuccess) {
-        onSuccess(result);
-    }
-    return true;
-}
-
-function createCookie(name, value, days) {
-    var expires;
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toGMTString();
-    }
-    else {
-        expires = "";
-    }
-    document.cookie = name + "=" + value + expires + "; path=/";
-}
-
-function createCookieWithPath(name, value, days, path) {
-    var expires;
-    if (days) {
-        var date = new Date();
-        date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
-        expires = "; expires=" + date.toGMTString();
-    }
-    else {
-        expires = "";
-    }
-    document.cookie = name + "=" + value + expires + "; path=" + path;
-}
-
-function eraseCookie(name) {
-    createCookie(name, "", -1);//clear out the values and make it expire
-}
-
-function navigate(url) {
-    window.location = url;
-}
-//popup/display related stuff
-function showElement(ele) {
-    if (ele) {
-        ele.style.display = "block";
-    }
-}
-function showElementInline(ele) {
-    if (ele) {
-        ele.style.display = "inline";
-    }
-}
-
-function showElementInlineBlock(ele) {
-    if (ele) {
-        ele.style.display = "inline-block";
-    }
-}
-
-function hideElement(ele) {
-    if (ele) {
-        ele.style.display = "none";
-    }
-}
-
-function hideElements(eles) {
-    for (var i = 0; i < eles.length; i++) {
-        hideElement(eles[i]);
-    }
-}
-
-//For when display none doesn't cut it
-//ex: http://stackoverflow.com/questions/2345784/jquery-get-height-of-hidden-element-in-jquery
-function showElementVisibility(ele) {
-    ele.style.visibility = "visible";
-}
-function hideElementVisibility(ele) {
-    ele.style.visibility = "hidden";
-}
-
-/* call to ss-pika JS function to show ss-pika icons, usually this needs to be done in old versions of IE for when data is fetched via JS that may have the ss-pika icons */
-function reloadIcons() {
-    //if we have an older browser which doesn't have the getElementsByClassName feature (i.e. IE8)
-    if (typeof ss_legacy !== 'undefined') {
-        if (!document.getElementsByClassName) {
-            ss_legacy(ss_getElementsByClassName(document.body, 'ss-icon'));
-        } else {
-            ss_legacy(document.getElementsByClassName('ss-icon'));
-        }
-    }
-}
-
-function showPopup(idName) {
-
-    //it appends a backdrop div to the body, sets a class on the body for overflow prevention
-    //and actually displays the popup
-    var $element = $('#' + idName);
-    if ($element.modal) {
-        if ($('.modal-backdrop').length != 0) {
-            $('.modal-backdrop').remove();
-        }
-
-        //shows the popup using bootstrap's modal plugin
-        $element.modal({
-            backdrop: 'static',
-            show: true
-        });
-
-        // if there is a backdrop_border it means we're using a 'mini' backdrop
-        // so remove the big backdrop that covers the whole screen
-        if ($('.backdrop_border').length != 0) {
-            $('.modal-backdrop').remove();
-        }
-    }
-    else {
-        //safe way to show popup when bootstrap plugin doesn't exist
-        document.getElementById(idName).style.display = "block";
-
-        if ($(".modal-backdrop").length == 0) {
-            var backdrop = document.createElement('div');
-            backdrop.id = idName + "_modal_backdrop";
-            backdrop.classList.add('modal-backdrop');
-            backdrop.classList.add('in');
-            document.body.appendChild(backdrop); // have to remove on hide
-        }
-    }
-
-    if (arguments.length === 2) {
-        var offsetElement = arguments[1];
-        var offset = $(offsetElement).offset();
-        var topOffset = offset.top + $(offsetElement).height();
-        var leftPadding = parseInt($element.css('padding-left').replace("px", ""), 10);
-        var leftOffset = offset.left - leftPadding;
-        $element.css({
-            top: topOffset + "px",
-            left: leftOffset + "px"
-        });
-    }
-
-}
-
-function hidePopup(idName) {
-$ curl -s "https://structuredweb.dell.com/sw/app/CommonUI/JS/formHelper.js" 2>/dev/null | head -400
-
-//note requires jQuery for isArray() support - or isArray must be polyfilled
-//trySave disables elements given and runs a validation then a submit function if validation succeeds
-//(such as disabling form submit buttons when save is pressed)
-//if validation doesn't succeed then the elements given are re-enabled
-//o is an array of elements or a single element (e.g. your save buttons)
-//validate is the validation function which must return true or false
-//submit is submit function (usually form submit, theoretically could do an ajax submit func here)
-function trySave(o, validate, submit) {
-    var elements;
-    if (typeof validate !== "function" || typeof submit !== "function") {
-        throw "validate and submit must be functions";
-    }
-    if (o === null) {
-        throw "must supply element or array for first argument"
-    }
-    if (Array.isArray(o)) {
-        elements = o;
-    } else {
-        elements = [o];
-    }
-    setElementsState(elements, false);
-    if (validate()) {
-        submit();
-    } else {
-        setElementsState(elements, true);
-    }
-}
-//toggles elements disabled state
-function setElementsState(elements, enabled) {
-    for (var i = 0; i < elements.length; i++) {
-        if (elements[i] !== null) {
-            elements[i].disabled = !enabled;
-        }
-    }
-}
-$ curl -s "https://structuredweb.dell.com/sw/app/CommonUI/JS/resizeIFrame.js" 2>/dev/null
-
-var getFFVersion = navigator.userAgent.substring(navigator.userAgent.indexOf("Firefox")).split("/")[1];
-var FFextraHeight = parseFloat(getFFVersion) >= 0.1 ? 30 : 0;  //extra height in px to add to iframe in FireFox 1.0+ browsers
-
-function resizeIframe(frameid) {
-    var currentfr = document.getElementById(frameid);
-    if (currentfr && !window.opera) {
-        setupIframe(currentfr);
-        currentfr.style.display = "block";
-        var heightBefore = currentfr.height;
-        var scrollHeight;
-        var extra = 0;
-        try {
-            var frameDoc = null;
-            var topBefore = window.document.documentElement.scrollTop;
-            var scrollingBefore = currentfr.scrolling;
-            currentfr.scrolling = 'no';
-            currentfr.height = 10; //force it to recalculate, otherwise on location change the bigger size stays
-            if (currentfr.Document && currentfr.Document.body.scrollHeight) //ie5+ syntax
-            {
-                frameDoc = currentfr.Document;
-                if (scrollingBefore == 'auto' || scrollingBefore == 'yes') {
-                    scrollHeight = frameDoc.body.scrollHeight;
-                    extra = 30; //I added 30 pixels for auto scrolling
-                }
-                else {
-                    scrollHeight = frameDoc.body.scrollHeight;
-                }
-                clientHeight = frameDoc.body.clientHeight;
-            }
-            else if (currentfr.contentDocument.body)//Firefox
-            {
-
-                frameDoc = currentfr.contentDocument;
-                scrollHeight = frameDoc.body.scrollHeight;
-                clientHeight = frameDoc.body.clientHeight;
-                extra = FFextraHeight;
-            }
-
-            var absElements = findAbsoluteElements(frameDoc);
-            var absBottom = bottomAbsoluteElements(absElements);
-            scrollHeight = Math.max(scrollHeight, absBottom);
-            
-            currentfr.height = scrollHeight + extra;
-
-            currentfr.scrolling = scrollingBefore;
-
-            
-            window.document.documentElement.scrollTop = topBefore;
-        }
-        catch (error) {
-            currentfr.height = 800;
-        }
-    }
-}
-function setupIframe(iframeElement) {
-    if (iframeElement.addEventListener) {
-        iframeElement.addEventListener("load", readjustIframe, false);
-    }
-    else if (iframeElement.attachEvent) {
-        iframeElement.detachEvent("onload", readjustIframe); // Bug fix line
-        iframeElement.attachEvent("onload", readjustIframe);
-    }
-}
-function readjustIframe(loadevt) {
-	var crossevt = (window.event) ? event : loadevt;
-	var iframeroot = (crossevt.currentTarget) ? crossevt.currentTarget : crossevt.srcElement;
-	if (iframeroot)
-		resizeIframe(iframeroot.id);
-}
-
-function resizeIframeWidth(frameid) {
-
-	var frame = document.getElementById(frameid);
-	var frameContent;
-	var contentWidth;
-	if (frame.Document && frame.Document.body.width) //ie5+ syntax
-	{
-		frameContent = frame.Document.body;
-	}
-	else if (frame.contentWindow.document.documentElement) {
-		frameContent = frame.contentWindow.document.documentElement;
-	}
-	else if (frame.contentWindow.document.body) {
-		frameContent = frame.contentWindow.document.body;
-	}
-	contentWidth = frameContent.scrollWidth;
-	frame.width = contentWidth;
-}
-
-function findAbsoluteElements(doc) {
-    var all = doc.getElementsByTagName("*");
-	var absElements = new Array();
-	for (var i = 0; i < all.length; i++) {
-		if (all[i].position == 'absolute' || all[i].style.position == 'absolute') {
-			absElements[absElements.length] = all[i];
-		}
-	}
-	return absElements;
-}
-
-function bottomAbsoluteElements(absElements) {
-	var bottom = 0;
-	for (var i = 0; i < absElements.length; i++) {
-		var elemBottom = absElements[i].offsetTop + absElements[i].offsetHeight;
-		bottom = Math.max(bottom, elemBottom);
-	}
-	return bottom;
-}
-
-//new non-global dependent
-function resizeCaller() {
-    var iframes = document.getElementsByTagName("iframe");
-    for (i = 0; i < iframes.length; i++) {
-        if (document.getElementById && iframes[i].id) {
-            resizeIframe(iframes[i].id);
-        }
-    }
-
-    //Only continue for child windows, the top window is it's own parent 
-    if (window.parent != window) {
-        if (parent.resizeCaller) {
-            parent.resizeCaller();
-        }
-    }
-}
-
-function recursiveResize(frame){
-	if(typeof frame !== "undefined"){
-		
-		if(frame.parent && frame.top !== frame.self){
-			recursiveResize(frame.parent);
-		}
-		if(frame.resizeCaller){
-			setTimeout(frame.resizeCaller,700);
-		}
-	}
-}
+GET /api/users/123 Response: Basic user info
+Try different methods:
+
+
+POST /api/users/123 ← Might return more data
+PUT /api/users/123 ← Might allow updates
+DELETE /api/users/123 ← Might allow deletion
+PATCH /api/users/123 ← Might allow partial updates
+Sometimes different formats have different security.
+
+Technique 3: Case Sensitivity Testing
+
+GET /api/users/profile
+GET /API/users/profile
+GET /Api/Users/Profile
+GET /api/USERS/PROFILE
+Some servers handle these differently.
+
+Technique 4: Trailing Slash
+
+GET /api/users/profile
+GET /api/users/profile/
+GET /api/users/profile//
+GET /api/users/profile/..
+Technique 5: Subdomain Enumeration
+
+api.example.com
+api-v1.example.com
+api-old.example.com
+api-staging.example.com
+api-test.example.com
+api-dev.example.com
+mobile-api.example.com
+internal-api.example.com
+Tools You Need
+Subfinder
+
+subfinder -d example.com | grep api
+Complete Testing Checklist
+✅ Version variations (v1, v2, v3, etc.)
+✅ Platform paths (web, mobile, admin, internal)
+✅ Environment paths (dev, test, debug, staging)
+✅ HTTP methods (GET, POST, PUT, DELETE, PATCH)
+✅ File extensions (.json, .xml, .php)
+✅ Case variations
+✅ Trailing slashes
+✅ Subdomain enumeration
+✅ Parameter discovery
+✅ Old documentation (Wayback Machine)
+1. Burp Suite
+Capture all API traffic
+
+2. ffuf
+
+ffuf -u https://api.example.com/FUZZ -w wordlist.txt
+3. Arjun
+
+arjun -u https://api.example.com/endpoint
+4. waybackurls
+
+waybackurls example.com | grep api
+5. SubFinder
+
+subfinder -d example.com
+🔥 Pro Tips That Separate Juniors from Pros
+✅ Always test both GET & POST — same endpoint can behave differently ✅ Check all environments — prod/test/staging endpoints sometimes leak
+
+📝 How to Write a Winning Bug Report
+High payouts depend on clear, reproducible reports.
+
+Include:
+
+Summary: What's broken
+Steps: Exactly how to reproduce
+Requests: Endpoint + method
+Response: What the server returns
+Impact: Why this matters
+PoC Script: Automate if possible
+Example
+
+
+POST /api/v1/admin/reset_password
+Auth: None
+Payload: {"user_id": "12345", "new_password": "P@ssw0rd"}
+Response:
+{"status": "success"}
+Impact:
+Unauthenticated attacker can reset any user's password.
+The Fastest Route to $10k
+Week 1: Pick one target, map ALL visible endpoints
+
+Week 2: Test version variations for each endpoint
+
+Week 3: Test platform/environment variations
+
+Week 4: Automate with ffuf + custom wordlists
+
+Focus on:
+
+Financial apps (higher payouts)
+SaaS platforms (many API versions)
+Apps with mobile + web versions
+One critical finding = $5k-$15k
+
+Final Tips
+1. Old is gold
+
+v1 endpoints often have no security
+Companies forget they exist
+2. Mobile APIs are weaker
+
+Developers assume mobile = secure
+Often skip 2FA, CSRF protection
+3. Debug endpoints are treasure
+
+/api/debug/...
+/api/test/...
+Usually zero authentication
+4. Document everything
+
+Keep a spreadsheet of all endpoints tested
+Track patterns across different targets
+5. Automate the boring parts
+
+Use scripts for version enumeration
+Build custom wordlists from patterns you see
+Start Today
+Pick a bug bounty program
+Use Burp to capture visible endpoints
+Test just ONE endpoint with all variations
+Document your findings
+Scale up
+Hidden endpoints are the highest ROI in bug bounty hunting.
+
+Everyone tests the login form. Nobody tests /api/v1/debug/users.
+
+Be the nobody.
+
+👏 Clap if this helps you find your first hidden endpoint 💬 Comment your biggest API discovery 🔔 Follow for more bug bounty techniques
+
+#BugBounty #APIHacking #CyberSecurity #EthicalHacking #BugBountyTips #HiddenAPIs #SecurityResearch #InfoSec #HackerOne #Bugcrowd
+
+
+
+
+
+
+
+I learned early that “not found” often means “not looked at.” In large systems, endpoints die, versions split, and shadow routes persist on backends or in old mobile apps. Those forgotten endpoints are low-noise, high-impact targets. This article walks you through the mindset, the techniques and real-case archetypes that turn a casual 404 into a serious payout without being noisy or reckless.
+
+The forgotten-endpoint phenomenon
+Forgotten endpoints aren’t glamorous. They’re leftovers from migrations, abandoned feature branches, mobile clients that never got updated or configuration files left in build artifacts. Typical origins:
+
+API versioning drift (/api/v1/ still running while /api/v3/ is live)
+Developer debug routes and admin stubs (/debug/, /admin_old/)
+Old mobile app endpoints that the frontend stopped using but the backend still serves
+Misrouted CDN or caching configurations that expose archive paths
+Press enter or click to view image in full size
+
+Why they matter: those endpoints often bypass newer protections (auth checks, input validation, CSP) introduced in later versions. That mismatch is what turns a low-signal path into a high-impact hole.
+
+How I hunt forgotten endpoints
+You don’t need a supercomputer just curiosity and a predictable pipeline. Here are the methods I use every time.
+
+Historical recon (Wayback + gau)
+Historic URLs give you a map of what used to exist.
+
+gau target.com | grep -E "/v1/|/old/|/api/"
+waybackurls target.com | grep -E "beta|staging|old|v1"
+Collect everything, then filter for paths that look like API routes, admin panels or files (.env, .json, .bak).
+
+2. Smart wordlist expansion
+
+Generic wordlists miss bespoke names. Merge commons (dev, staging, backup) with app-specific tokens (URLs and path fragments you find in JS). Example fuzz paths to try:
+
+/api/v1/, /api/old/, /admin_old/, /debug/, /backup/, /staging/, /mobile/v1/
+3. JavaScript reconnaissance
+
+JS bundles are gold. They leak internal endpoints, feature flags, and potentially forgotten paths.
+
+# extract paths from JS
+cat all.js | grep -Eo "(\/[a-zA-Z0-9_\/\-]{3,})" | sort -u
+Look for /v1/, /internal/, /svc/, /upload/, or anything that looks like an API path.
+
+4. Targeted probing
+
+Probe likely paths with httpx (or Burp for manual inspection). Check for subtle differences in headers, content-length, or behavior that indicate the endpoint exists but returns 404/403 for normal access.
+
+httpx -l paths.txt -mc 200,403,500 -silent
+Small differences are clues an extra header, a different server banner, or a redirect tells you the code path still runs.
+
+How forgotten endpoints yield real bugs
+Below are anonymized case archetypes inspired by real reports. I’ll keep destructive details out but I’ll explain the core mechanics so you learn the pattern.
+
+Write on Medium
+Case A. The deprecated API (IDOR by omission)
+
+An old API /v1/get_user returned user details by numeric ID and relied on a front-end session check that was removed in later versions. The new API used JWT + scopes, but /v1/ still accepted unauthenticated requests — a logical mismatch. Result: an attacker could enumerate IDs and retrieve data that the modern API protected. Fix: decommission /v1/ or add consistent auth checks across versions.
+
+Case B. The leftover config (secrets in build artifacts)
+
+A staged admin endpoint /admin_old/config.json remained accessible and contained non-rotated keys used by a CI process. The keys were scoped and auditable, but they allowed privileged API calls. Result: sensitive access to internal tooling large bounty. Fix: remove secrets from artifacts, use vaults, rotate keys on deprecation.
+
+Case C. Legacy upload API (unsafe file handling)
+
+A legacy image upload endpoint allowed certain file types and never updated server-side validation when the stack changed. Modern uploads used safe libraries; the old route didn’t. By abusing content-type handling and upload path resolution, an attacker could place a payload accessible by a route the webserver executed. Result: high-severity impact. Fix: unify upload handling and remove deprecated upload endpoints.
+
+Turning “404” into a lead checklist for follow-ups
+
+When you hit a 404 do these quick checks before moving on:
+
+Inspect headers: does Server, X-Powered-By, or Via differ from other 404 ?
+Try nearby paths: add /old, /v1, /admin, /backup.
+Check for soft 404s: compare body lengths and titles versus canonical 404 pages.
+Look in JS for references to the path (it might be hardcoded in an old client).
+Search Wayback / archived API docs for the endpoint semantics.
+These small clues tell you whether the 404 is a real dead end or a sign of a shadow route.
+
+Automating discovery
+
+Scripted approaches speed things up without blasting a target:
+
+Build a merged paths list: historical + JS-extracted + custom wordlist.
+Filter with httpx for interesting status codes and content-length variance.
+Run low-noise checks (HEAD requests first, then GET only on promising hits).
+Feed live endpoints into nuclei or your custom template that checks for auth differences, interesting headers, or leaked data shapes.
+cat wayback_paths.txt js_paths.txt custom_words.txt | sort -u > paths_all.txt
+httpx -l paths_all.txt -method HEAD -silent -o head_results.txt
+Responsible disclosure & defensive takeaways
+If you find something sensitive, follow the target’s bug bounty or disclosure policy. Don’t exfiltrate data; document behavior and give clear repro steps that show impact without harvesting secrets.
+
+For engineering teams, the defensive checklist is short and effective:
+
+Maintain an authoritative API inventory and retire versions explicitly.
+Enforce deprecation notices and auto-block old clients at gateways.
+Scan build artifacts and releases for exposed configs/secrets.
+Run automated smoke tests that validate new auth and validation logic across versions.
+A mindset, not just a technique
+The best bug hunting moves are patient and curious. A 404 is rarely the end of a story it’s a bookmark. Treat every “not found” as a hypothesis: either that path died cleanly or it hides a relic that exposes modern systems. That curiosity combined with careful, low-noise tooling is how I turned forgotten endpoints into serious bounties.
+
+If this write-up helped you look at “not found” a little differently, consider supporting my research and caffeine supply
+
+
+
+
+
+
+
+
+
+
+
+
