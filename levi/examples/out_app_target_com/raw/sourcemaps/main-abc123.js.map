@@ -1,0 +1,1 @@
+{"mappings":"AAAA;AACA","names":["t","n","e","App","refresh"],"sources":["webpack://src/app.js"],"sourcesContent":["var t = window.__CFG.api;\nfunction n(e) {\n  return fetch(t + \"/auth/refresh\", {\n    method: \"POST\",\n    body: JSON.stringify({ rt: localStorage.getItem(\"rt\") })\n  });\n}\nwindow.App = { refresh: n };\n"],"version":3}

@@ -1,0 +1,2 @@
+{"method":"POST","path":"/v2/auth/refresh","source":"main-abc123.js","verdict":"CANDIDATE","verdict_note":"needs live test vs baseline"}
+{"method":"GET","path":"/v1/admin/export","source":"historical_js diff","verdict":"CONFIRMED","verdict_note":"200, no auth, 2x reproduced"}

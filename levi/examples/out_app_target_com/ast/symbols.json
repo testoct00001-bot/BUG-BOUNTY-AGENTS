@@ -1,0 +1,1 @@
+{"defined_in":{"App":"main-abc123.js","__CFG":"login.0.js (inline)"},"exports":{"App":["refresh"]},"globals":["__CFG","App"],"note":"globals, exports, and where each is defined — cross-file symbol index"}

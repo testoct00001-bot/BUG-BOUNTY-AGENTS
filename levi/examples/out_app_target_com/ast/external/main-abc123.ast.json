@@ -1,0 +1,1 @@
+{"body":[{"expression":{"callee":{"name":"Function"},"type":"CallExpression"},"type":"ExpressionStatement"}],"file":"main-abc123.js","note":"excerpt — full AST is machine output; what matters is that it exists per file and parses","sourceType":"script","type":"Program"}
